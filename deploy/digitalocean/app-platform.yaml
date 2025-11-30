@@ -1,0 +1,41 @@
+# DigitalOcean App Platform Specification
+# Deploy using: doctl apps create --spec app-platform.yaml
+
+name: floodwatch-lk
+
+services:
+  - name: backend
+    github:
+      repo: yourusername/floodwatch-lk
+      branch: main
+      deploy_on_push: true
+    source_dir: backend
+    dockerfile_path: backend/Dockerfile
+    http_port: 8000
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    routes:
+      - path: /api
+    envs:
+      - key: DATABASE_URL
+        scope: RUN_TIME
+        type: SECRET
+      - key: TWILIO_ACCOUNT_SID
+        scope: RUN_TIME
+        type: SECRET
+      - key: TWILIO_AUTH_TOKEN
+        scope: RUN_TIME
+        type: SECRET
+      - key: TWILIO_PHONE_NUMBER
+        scope: RUN_TIME
+        type: SECRET
+      - key: FRONTEND_URL
+        scope: RUN_TIME
+        value: https://floodwatch.vercel.app
+
+databases:
+  - name: floodwatch-db
+    engine: PG
+    version: "15"
+    size: db-s-dev-database
+    num_nodes: 1
