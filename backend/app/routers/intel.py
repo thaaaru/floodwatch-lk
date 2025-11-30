@@ -18,6 +18,9 @@ from ..services.osm_facilities import (
 from ..services.weatherapi_alerts import weatherapi_service
 from ..services.marine_weather import marine_service
 from ..services.traffic_incidents import traffic_service
+from ..services.here_traffic_flow import here_flow_service
+from ..services.tomtom_traffic_flow import tomtom_flow_service
+from ..services.here_weather import here_weather_service
 
 router = APIRouter(prefix="/api/intel", tags=["intelligence"])
 
@@ -659,4 +662,217 @@ async def refresh_traffic_incidents():
         "status": "refreshed",
         "count": len(incidents),
         "summary": summary,
+    }
+
+
+# ============================================================
+# Traffic Flow Endpoints (HERE & TomTom)
+# ============================================================
+
+@router.get("/traffic-flow")
+async def get_traffic_flow():
+    """
+    Get real-time traffic flow data for major roads in Sri Lanka.
+
+    Returns current speeds, free-flow speeds, and congestion levels
+    for expressways, major city roads, and inter-city highways.
+
+    Combines data from both HERE and TomTom for better coverage.
+
+    Congestion levels:
+    - free: Traffic moving at normal speeds (>90% of free flow)
+    - light: Slightly slower than normal (70-90%)
+    - moderate: Noticeable slowdown (50-70%)
+    - heavy: Significant congestion (30-50%)
+    - severe: Near standstill (<30%)
+
+    Data is cached for 5 minutes.
+    """
+    # Fetch from both sources
+    here_data = []
+    tomtom_data = []
+
+    if not here_flow_service.is_cache_valid():
+        here_data = await here_flow_service.fetch_all_flow_data()
+    else:
+        here_data = here_flow_service.get_cached_data()
+
+    if not tomtom_flow_service.is_cache_valid():
+        tomtom_data = await tomtom_flow_service.fetch_all_flow_data()
+    else:
+        tomtom_data = tomtom_flow_service.get_cached_data()
+
+    here_summary = here_flow_service.get_summary()
+    tomtom_summary = tomtom_flow_service.get_summary()
+
+    return {
+        "here": {
+            "count": len(here_data),
+            "summary": here_summary,
+            "locations": here_data,
+        },
+        "tomtom": {
+            "count": len(tomtom_data),
+            "summary": tomtom_summary,
+            "locations": tomtom_data,
+        },
+        "combined_count": len(here_data) + len(tomtom_data),
+    }
+
+
+@router.get("/traffic-flow/here")
+async def get_here_traffic_flow():
+    """
+    Get traffic flow data from HERE API only.
+
+    Returns speeds and congestion for major Sri Lanka roads.
+    """
+    if not here_flow_service.is_cache_valid():
+        await here_flow_service.fetch_all_flow_data()
+
+    data = here_flow_service.get_cached_data()
+    summary = here_flow_service.get_summary()
+
+    return {
+        "count": len(data),
+        "summary": summary,
+        "locations": data,
+    }
+
+
+@router.get("/traffic-flow/tomtom")
+async def get_tomtom_traffic_flow():
+    """
+    Get traffic flow data from TomTom API only.
+
+    Returns speeds, travel times, and delays for major Sri Lanka roads.
+    """
+    if not tomtom_flow_service.is_cache_valid():
+        await tomtom_flow_service.fetch_all_flow_data()
+
+    data = tomtom_flow_service.get_cached_data()
+    summary = tomtom_flow_service.get_summary()
+
+    return {
+        "count": len(data),
+        "summary": summary,
+        "locations": data,
+        "congested_roads": tomtom_flow_service.get_congested_roads(),
+    }
+
+
+@router.post("/traffic-flow/refresh")
+async def refresh_traffic_flow():
+    """
+    Force refresh traffic flow data from both HERE and TomTom.
+    """
+    here_data = await here_flow_service.fetch_all_flow_data()
+    tomtom_data = await tomtom_flow_service.fetch_all_flow_data()
+
+    return {
+        "status": "refreshed",
+        "here_count": len(here_data),
+        "tomtom_count": len(tomtom_data),
+        "here_summary": here_flow_service.get_summary(),
+        "tomtom_summary": tomtom_flow_service.get_summary(),
+    }
+
+
+# ============================================================
+# HERE Weather Endpoints
+# ============================================================
+
+@router.get("/here-weather")
+async def get_here_weather():
+    """
+    Get current weather observations from HERE Weather API.
+
+    Returns temperature, humidity, precipitation, wind, and other
+    weather data for all 25 districts of Sri Lanka.
+
+    Data is cached for 30 minutes.
+    """
+    if not here_weather_service.is_cache_valid():
+        await here_weather_service.fetch_all_observations()
+
+    observations = here_weather_service.get_cached_observations()
+    summary = here_weather_service.get_summary()
+
+    return {
+        "count": len(observations),
+        "summary": summary,
+        "observations": observations,
+    }
+
+
+@router.get("/here-weather/forecast")
+async def get_here_weather_forecast():
+    """
+    Get 7-day weather forecasts from HERE Weather API.
+
+    Returns daily forecasts including temperature highs/lows,
+    precipitation probability, and conditions for all districts.
+    """
+    forecasts = await here_weather_service.fetch_all_forecasts()
+
+    return {
+        "count": len(forecasts),
+        "locations": forecasts,
+    }
+
+
+@router.get("/here-weather/alerts")
+async def get_here_weather_alerts():
+    """
+    Get weather alerts from HERE Weather API.
+
+    Returns active weather warnings, watches, and advisories
+    for Sri Lanka locations.
+    """
+    alerts = await here_weather_service.fetch_all_alerts()
+
+    return {
+        "count": len(alerts),
+        "alerts": alerts,
+    }
+
+
+@router.get("/here-weather/location")
+async def get_here_weather_for_location(
+    lat: float = Query(..., description="Latitude"),
+    lon: float = Query(..., description="Longitude"),
+    name: str = Query("Custom Location", description="Location name"),
+):
+    """
+    Get weather data for a specific location.
+
+    Returns current observation, 7-day forecast, and any active alerts.
+    """
+    observation = await here_weather_service.fetch_observation(lat, lon, name)
+    forecast = await here_weather_service.fetch_forecast(lat, lon, name)
+    alerts = await here_weather_service.fetch_alerts(lat, lon, name)
+
+    return {
+        "location": name,
+        "lat": lat,
+        "lon": lon,
+        "observation": observation,
+        "forecast": forecast.get("forecasts") if forecast else [],
+        "alerts": alerts,
+    }
+
+
+@router.post("/here-weather/refresh")
+async def refresh_here_weather():
+    """
+    Force refresh weather data from HERE.
+    """
+    observations = await here_weather_service.fetch_all_observations()
+    alerts = await here_weather_service.fetch_all_alerts()
+
+    return {
+        "status": "refreshed",
+        "observations_count": len(observations),
+        "alerts_count": len(alerts),
+        "summary": here_weather_service.get_summary(),
     }
