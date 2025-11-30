@@ -94,6 +94,39 @@ export default function GoogleMapsTraffic() {
 
       {/* Map container */}
       <div ref={mapRef} className="w-full h-full rounded-lg" />
+
+      {/* Traffic Legend */}
+      {!isLoading && (
+        <div className="absolute bottom-6 left-4 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-3 z-10">
+          <div className="font-semibold text-gray-700 text-sm mb-2 flex items-center gap-2">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Traffic Legend
+          </div>
+          <div className="space-y-1.5 text-xs">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-2 rounded" style={{ backgroundColor: '#30ac3e' }}></div>
+              <span className="text-gray-600">Fast / Normal flow</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-2 rounded" style={{ backgroundColor: '#f5a623' }}></div>
+              <span className="text-gray-600">Slow moving</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-2 rounded" style={{ backgroundColor: '#e34133' }}></div>
+              <span className="text-gray-600">Heavy / Congested</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-2 rounded" style={{ backgroundColor: '#811f1f' }}></div>
+              <span className="text-gray-600">Very slow / Blocked</span>
+            </div>
+          </div>
+          <div className="mt-2 pt-2 border-t text-xs text-gray-400">
+            Data: Google Maps
+          </div>
+        </div>
+      )}
     </div>
   );
 }
