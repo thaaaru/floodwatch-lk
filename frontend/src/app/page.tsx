@@ -23,6 +23,7 @@ const layerOptions: { id: MapLayer; label: string; icon: string; description: st
   { id: 'wind', label: 'Wind', icon: '💨', description: 'Wind speed', group: 'current' },
   { id: 'pressure', label: 'Pressure', icon: '📊', description: 'Atmospheric pressure', group: 'current' },
   { id: 'clouds', label: 'Clouds', icon: '☁️', description: 'Cloud cover', group: 'current' },
+  { id: 'gtraffic', label: 'Traffic', icon: '🚗', description: 'Live traffic conditions from Google Maps', group: 'current' },
   { id: 'forecast1', label: 'Day 1', icon: '📅', description: 'Forecast for tomorrow', group: 'forecast' },
   { id: 'forecast2', label: 'Day 2', icon: '📅', description: 'Forecast for day 2', group: 'forecast' },
   { id: 'forecast3', label: 'Day 3', icon: '📅', description: 'Forecast for day 3', group: 'forecast' },
@@ -94,6 +95,14 @@ const layerLegends: Record<MapLayer, { colors: { color: string; label: string }[
       { color: '#9ca3af', label: 'Broken (50-70%)' },
       { color: '#6b7280', label: 'Mostly Cloudy (70-90%)' },
       { color: '#374151', label: 'Overcast (>90%)' },
+    ]
+  },
+  gtraffic: {
+    colors: [
+      { color: '#30ac3e', label: 'Fast / Normal' },
+      { color: '#f5a623', label: 'Slow moving' },
+      { color: '#e34133', label: 'Heavy traffic' },
+      { color: '#8b0000', label: 'Very slow / Blocked' },
     ]
   },
   forecast1: {

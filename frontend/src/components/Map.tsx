@@ -25,7 +25,7 @@ interface SatelliteData {
 
 type OverlayType = 'radar' | 'satellite' | 'none';
 
-export type MapLayer = 'rainfall' | 'danger' | 'temperature' | 'humidity' | 'wind' | 'pressure' | 'clouds' | 'forecast1' | 'forecast2' | 'forecast3' | 'forecast4' | 'forecast5';
+export type MapLayer = 'rainfall' | 'danger' | 'temperature' | 'humidity' | 'wind' | 'pressure' | 'clouds' | 'forecast1' | 'forecast2' | 'forecast3' | 'forecast4' | 'forecast5' | 'gtraffic';
 
 interface MapControllerProps {
   weatherData: WeatherSummary[];
@@ -253,7 +253,6 @@ export default function Map({ onDistrictSelect, hours, layer }: MapProps) {
   const [marineConditions, setMarineConditions] = useState<MarineCondition[]>([]);
   const [showTraffic, setShowTraffic] = useState(false);
   const [trafficIncidents, setTrafficIncidents] = useState<TrafficIncident[]>([]);
-  const [showGoogleTraffic, setShowGoogleTraffic] = useState(false);
 
   const isForecastLayer = layer.startsWith('forecast');
   const forecastDayIndex = isForecastLayer ? parseInt(layer.replace('forecast', '')) - 1 : 0;
@@ -912,6 +911,11 @@ export default function Map({ onDistrictSelect, hours, layer }: MapProps) {
     );
   }
 
+  // Show Google Maps Traffic when gtraffic layer is selected
+  if (layer === 'gtraffic') {
+    return <GoogleMapsTraffic />;
+  }
+
   const sriLankaCenter: [number, number] = [7.8731, 80.7718];
 
   return (
@@ -1015,16 +1019,6 @@ export default function Map({ onDistrictSelect, hours, layer }: MapProps) {
             </svg>
             Lightning
           </a>
-          <button
-            onClick={() => setShowGoogleTraffic(true)}
-            className="px-3 py-2 rounded-lg shadow-md flex items-center gap-2 text-sm font-medium bg-green-600 text-white hover:bg-green-700 transition-colors"
-            title="Google Maps live traffic"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-            </svg>
-            G-Traffic
-          </button>
         </div>
 
         {overlayType !== 'none' && currentFrames.length > 0 && (
@@ -1160,12 +1154,6 @@ export default function Map({ onDistrictSelect, hours, layer }: MapProps) {
         {marineMarkers}
         {trafficMarkers}
       </MapContainer>
-
-      {/* Google Maps Traffic Overlay */}
-      <GoogleMapsTraffic
-        visible={showGoogleTraffic}
-        onClose={() => setShowGoogleTraffic(false)}
-      />
     </div>
   );
 }
