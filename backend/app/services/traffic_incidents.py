@@ -1,5 +1,5 @@
 """
-TomTom Traffic Incidents API integration.
+HERE Traffic Incidents API integration.
 Provides real-time road incidents, closures, and traffic data for Sri Lanka.
 """
 import httpx
@@ -11,56 +11,62 @@ from ..config import get_settings
 
 logger = logging.getLogger(__name__)
 
-# Sri Lanka split into smaller regions (TomTom limits bbox to 10,000 km²)
-# Using ~0.8° x 0.8° regions (~8,000 km² each)
+# Sri Lanka split into 1° x 1° grid cells (HERE limits bbox to 1 degree)
 SRI_LANKA_REGIONS = [
-    # Colombo Metro
-    {"min_lat": 6.7, "min_lon": 79.7, "max_lat": 7.1, "max_lon": 80.2, "name": "Colombo"},
-    # Galle-Matara
-    {"min_lat": 5.9, "min_lon": 80.0, "max_lat": 6.4, "max_lon": 80.6, "name": "Galle-Matara"},
-    # Kandy
-    {"min_lat": 7.1, "min_lon": 80.4, "max_lat": 7.5, "max_lon": 80.9, "name": "Kandy"},
-    # Kurunegala-Anuradhapura
-    {"min_lat": 7.5, "min_lon": 79.9, "max_lat": 8.2, "max_lon": 80.6, "name": "Kurunegala"},
-    # Jaffna
-    {"min_lat": 9.4, "min_lon": 79.8, "max_lat": 9.9, "max_lon": 80.4, "name": "Jaffna"},
-    # Trincomalee
-    {"min_lat": 8.3, "min_lon": 80.9, "max_lat": 8.8, "max_lon": 81.4, "name": "Trincomalee"},
-    # Batticaloa
-    {"min_lat": 7.5, "min_lon": 81.4, "max_lat": 8.0, "max_lon": 81.9, "name": "Batticaloa"},
-    # Negombo-Chilaw
-    {"min_lat": 7.1, "min_lon": 79.7, "max_lat": 7.6, "max_lon": 80.2, "name": "Negombo"},
+    # Row 1 (Southern)
+    {"min_lat": 5.9, "min_lon": 79.5, "max_lat": 6.9, "max_lon": 80.5, "name": "Southwest"},
+    {"min_lat": 5.9, "min_lon": 80.5, "max_lat": 6.9, "max_lon": 81.5, "name": "Southeast"},
+    # Row 2
+    {"min_lat": 6.9, "min_lon": 79.5, "max_lat": 7.9, "max_lon": 80.5, "name": "West-Central"},
+    {"min_lat": 6.9, "min_lon": 80.5, "max_lat": 7.9, "max_lon": 81.5, "name": "East-Central"},
+    # Row 3
+    {"min_lat": 7.9, "min_lon": 79.5, "max_lat": 8.9, "max_lon": 80.5, "name": "Northwest"},
+    {"min_lat": 7.9, "min_lon": 80.5, "max_lat": 8.9, "max_lon": 81.5, "name": "Northeast"},
+    # Row 4 (Northern)
+    {"min_lat": 8.9, "min_lon": 79.5, "max_lat": 9.9, "max_lon": 80.5, "name": "North"},
 ]
 
-# TomTom incident categories
+# HERE incident categories mapping
 INCIDENT_CATEGORIES = {
-    0: "Unknown",
-    1: "Accident",
-    2: "Fog",
-    3: "Dangerous Conditions",
-    4: "Rain",
-    5: "Ice",
-    6: "Jam",
-    7: "Lane Closed",
-    8: "Road Closed",
-    9: "Road Works",
-    10: "Wind",
-    11: "Flooding",
-    14: "Broken Down Vehicle",
+    "accident": "Accident",
+    "congestion": "Jam",
+    "roadClosed": "Road Closed",
+    "construction": "Road Works",
+    "disabledVehicle": "Broken Down Vehicle",
+    "plannedEvent": "Event",
+    "massTransit": "Mass Transit",
+    "weather": "Weather",
+    "miscellaneous": "Other",
+    "roadHazard": "Road Hazard",
+    "laneRestriction": "Lane Closed",
 }
 
-# Severity mapping (TomTom uses magnitudeOfDelay)
-def get_severity(magnitude: int) -> str:
-    """Convert TomTom magnitude to severity level"""
-    if magnitude >= 4:
-        return "critical"
-    elif magnitude >= 3:
-        return "major"
-    elif magnitude >= 2:
-        return "moderate"
-    elif magnitude >= 1:
-        return "minor"
-    return "unknown"
+# Map HERE criticality to our severity levels
+def get_severity(criticality: str) -> str:
+    """Convert HERE criticality to severity level"""
+    criticality_map = {
+        "critical": "critical",
+        "major": "major",
+        "minor": "moderate",
+        "lowImpact": "minor",
+    }
+    return criticality_map.get(criticality, "unknown")
+
+
+# Map category to icon_category (for frontend compatibility)
+def get_icon_category(category: str) -> int:
+    """Map HERE category to icon category number"""
+    category_map = {
+        "accident": 1,
+        "congestion": 6,
+        "roadClosed": 8,
+        "construction": 9,
+        "weather": 11,
+        "disabledVehicle": 14,
+        "laneRestriction": 7,
+        "roadHazard": 3,
+    }
+    return category_map.get(category, 0)
 
 
 class TrafficIncident:
@@ -119,9 +125,9 @@ class TrafficIncident:
 
 
 class TrafficIncidentsService:
-    """Service for fetching traffic incidents from TomTom"""
+    """Service for fetching traffic incidents from HERE"""
 
-    BASE_URL = "https://api.tomtom.com/traffic/services/5/incidentDetails"
+    BASE_URL = "https://data.traffic.hereapi.com/v7/incidents"
 
     def __init__(self):
         self.settings = get_settings()
@@ -130,22 +136,15 @@ class TrafficIncidentsService:
         self._cache_duration_seconds = 300  # 5 minutes
 
     async def fetch_incidents_for_region(self, region: dict) -> list[dict]:
-        """Fetch traffic incidents for a specific region"""
-        api_key = self.settings.tomtom_api_key
-
-        if not api_key:
-            return []
+        """Fetch incidents for a single region"""
+        api_key = self.settings.here_api_key
 
         try:
             bbox = f"{region['min_lon']},{region['min_lat']},{region['max_lon']},{region['max_lat']}"
-
             params = {
-                "key": api_key,
-                "bbox": bbox,
-                "fields": "{incidents{type,geometry{type,coordinates},properties{id,iconCategory,magnitudeOfDelay,events{description,code,iconCategory},startTime,endTime,from,to,length,delay,roadNumbers}}}",
-                "language": "en-GB",
-                "categoryFilter": "0,1,2,3,4,5,6,7,8,9,10,11,14",
-                "timeValidityFilter": "present",
+                "apiKey": api_key,
+                "in": f"bbox:{bbox}",
+                "locationReferencing": "shape",
             }
 
             async with httpx.AsyncClient(timeout=30.0) as client:
@@ -153,82 +152,97 @@ class TrafficIncidentsService:
                 response.raise_for_status()
                 data = response.json()
 
-            return data.get("incidents", [])
-
+            return data.get("results", [])
         except Exception as e:
-            logger.error(f"Failed to fetch incidents for region {region.get('name', 'unknown')}: {e}")
+            logger.error(f"Failed to fetch incidents for region {region.get('name')}: {e}")
             return []
 
     async def fetch_incidents(self) -> list[dict]:
-        """Fetch traffic incidents for all of Sri Lanka (multiple regions)"""
-        api_key = self.settings.tomtom_api_key
+        """Fetch traffic incidents for Sri Lanka from HERE API"""
+        api_key = self.settings.here_api_key
 
         if not api_key:
-            logger.warning("TomTom API key not configured")
+            logger.warning("HERE API key not configured")
             return []
 
         try:
-            # Fetch from all regions
+            # Fetch from all regions and deduplicate
             all_raw_incidents = []
             seen_ids = set()
 
             for region in SRI_LANKA_REGIONS:
                 raw_incidents = await self.fetch_incidents_for_region(region)
                 for incident in raw_incidents:
-                    incident_id = incident.get("properties", {}).get("id")
+                    incident_id = incident.get("incidentId")
                     if incident_id and incident_id not in seen_ids:
                         seen_ids.add(incident_id)
                         all_raw_incidents.append(incident)
 
-            logger.info(f"Fetched {len(all_raw_incidents)} raw incidents from {len(SRI_LANKA_REGIONS)} regions")
+            logger.info(f"HERE API returned {len(all_raw_incidents)} raw incidents from {len(SRI_LANKA_REGIONS)} regions")
 
             incidents = []
-            raw_incidents = all_raw_incidents
-
-            for item in raw_incidents:
+            for item in all_raw_incidents:
                 try:
-                    props = item.get("properties", {})
-                    geometry = item.get("geometry", {})
+                    incident_details = item.get("incidentDetails", {})
+                    location = item.get("location", {})
 
-                    # Get coordinates (can be point or line)
-                    coords = geometry.get("coordinates", [])
-                    if geometry.get("type") == "Point":
-                        lon, lat = coords[0], coords[1] if len(coords) > 1 else (0, 0)
-                    elif geometry.get("type") == "LineString" and coords:
-                        # Use midpoint of line
-                        mid_idx = len(coords) // 2
-                        lon, lat = coords[mid_idx] if coords else (0, 0)
-                    else:
+                    # Get coordinates from shape
+                    shape = location.get("shape", {})
+                    links = shape.get("links", [])
+
+                    # Get midpoint of incident
+                    lat, lon = 0, 0
+                    if links:
+                        points = links[0].get("points", [])
+                        if points:
+                            mid_idx = len(points) // 2
+                            mid_point = points[mid_idx]
+                            lat = mid_point.get("lat", 0)
+                            lon = mid_point.get("lng", 0)
+
+                    if lat == 0 and lon == 0:
                         continue
 
-                    icon_category = props.get("iconCategory", 0)
-                    category = INCIDENT_CATEGORIES.get(icon_category, "Unknown")
-                    magnitude = props.get("magnitudeOfDelay", 0)
-                    severity = get_severity(magnitude)
+                    # Get incident type and category
+                    incident_type = incident_details.get("type", "miscellaneous")
+                    category = INCIDENT_CATEGORIES.get(incident_type, "Other")
+                    icon_category = get_icon_category(incident_type)
 
-                    # Get description from events
-                    events = props.get("events", [])
-                    description = events[0].get("description", "") if events else ""
+                    # Get severity from criticality
+                    criticality = incident_details.get("criticality", "minor")
+                    severity = get_severity(criticality)
 
-                    # Road names
-                    road_numbers = props.get("roadNumbers", [])
-                    road_name = ", ".join(road_numbers) if road_numbers else "Unknown Road"
+                    # Get description
+                    description = incident_details.get("description", {}).get("value", "")
+                    if not description:
+                        description = f"{category} reported"
+
+                    # Get road info
+                    road_name = location.get("description", "Unknown Road")
+
+                    # Get delay info
+                    delay_seconds = incident_details.get("delay", 0) or 0
+                    length_meters = location.get("length", 0) or 0
+
+                    # Get times
+                    start_time = incident_details.get("startTime")
+                    end_time = incident_details.get("endTime")
 
                     incident = TrafficIncident(
-                        id=props.get("id", ""),
+                        id=item.get("incidentId", ""),
                         icon_category=icon_category,
                         category=category,
                         severity=severity,
                         lat=lat,
                         lon=lon,
                         description=description,
-                        from_location=props.get("from", ""),
-                        to_location=props.get("to", ""),
+                        from_location=incident_details.get("from", ""),
+                        to_location=incident_details.get("to", ""),
                         road_name=road_name,
-                        delay_seconds=props.get("delay", 0),
-                        length_meters=props.get("length", 0),
-                        start_time=props.get("startTime"),
-                        end_time=props.get("endTime"),
+                        delay_seconds=delay_seconds,
+                        length_meters=length_meters,
+                        start_time=start_time,
+                        end_time=end_time,
                     )
                     incidents.append(incident.to_dict())
 
@@ -239,11 +253,11 @@ class TrafficIncidentsService:
             self._cache = incidents
             self._last_fetch = datetime.utcnow()
 
-            logger.info(f"Fetched {len(incidents)} traffic incidents for Sri Lanka")
+            logger.info(f"Fetched {len(incidents)} traffic incidents for Sri Lanka from HERE")
             return incidents
 
         except httpx.HTTPStatusError as e:
-            logger.error(f"TomTom API error: {e.response.status_code} - {e.response.text}")
+            logger.error(f"HERE API error: {e.response.status_code} - {e.response.text}")
             return []
         except Exception as e:
             logger.error(f"Failed to fetch traffic incidents: {e}")

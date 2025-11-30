@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     tomorrow_io_api_key: str = ""
     weatherapi_key: str = ""  # WeatherAPI.com key for alerts
     tomtom_api_key: str = ""  # TomTom Traffic API key
+    here_api_key: str = ""  # HERE Traffic API key
 
     # Application
     alert_check_interval_minutes: int = 15
