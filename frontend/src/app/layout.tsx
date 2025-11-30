@@ -28,6 +28,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             gtag('config', 'G-X70YJR4WSV');
           `}
         </Script>
+        <Script
+          src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAUQv4YkDz2D0IgQqi6Ncocjm5sxFMp8zM&libraries=places"
+          strategy="afterInteractive"
+        />
       </head>
       <body className={inter.className}>
         <div className="min-h-screen flex flex-col">
