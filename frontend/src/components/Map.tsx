@@ -114,6 +114,36 @@ function getMarineRiskColor(riskLevel: string): string {
   }
 }
 
+// Create custom wave icon for marine/coastal markers
+function createMarineIcon(riskLevel: string): L.DivIcon {
+  const color = getMarineRiskColor(riskLevel);
+  const size = 28;
+
+  return L.divIcon({
+    className: 'custom-marine-marker',
+    html: `<div style="
+      width: ${size}px;
+      height: ${size}px;
+      background-color: ${color};
+      border: 2px solid white;
+      border-radius: 50%;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    ">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
+        <path d="M2 12c1.5-2 3.5-3 6-3s4.5 1 6 3c1.5 2 3.5 3 6 3"/>
+        <path d="M2 18c1.5-2 3.5-3 6-3s4.5 1 6 3c1.5 2 3.5 3 6 3" opacity="0.5"/>
+        <path d="M2 6c1.5-2 3.5-3 6-3s4.5 1 6 3c1.5 2 3.5 3 6 3" opacity="0.5"/>
+      </svg>
+    </div>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  });
+}
+
 function getForecastAlertColor(level: string): string {
   if (level === 'red') return '#dc2626';
   if (level === 'orange') return '#f97316';
@@ -659,17 +689,10 @@ export default function Map({ onDistrictSelect, hours, layer }: MapProps) {
     if (!showMarine || marineConditions.length === 0) return null;
 
     return marineConditions.map((condition) => (
-      <CircleMarker
+      <Marker
         key={`marine-${condition.location}`}
-        center={[condition.lat, condition.lon]}
-        radius={10}
-        pathOptions={{
-          fillColor: getMarineRiskColor(condition.risk_level),
-          color: '#fff',
-          weight: 2,
-          opacity: 1,
-          fillOpacity: 0.9,
-        }}
+        position={[condition.lat, condition.lon]}
+        icon={createMarineIcon(condition.risk_level)}
       >
         <Popup maxWidth={300} minWidth={250}>
           <div className="p-1">
@@ -725,7 +748,7 @@ export default function Map({ onDistrictSelect, hours, layer }: MapProps) {
             )}
           </div>
         </Popup>
-      </CircleMarker>
+      </Marker>
     ));
   }, [showMarine, marineConditions]);
 
