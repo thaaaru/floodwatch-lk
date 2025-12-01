@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const BACKEND_URL = process.env.BACKEND_URL || 'https://api.floodwatch.hackandbuild.dev';
+const BACKEND_URL = process.env.BACKEND_URL || 'https://api.hackandbuild.dev';
 
 export async function GET(
   request: NextRequest,
