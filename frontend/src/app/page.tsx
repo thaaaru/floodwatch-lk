@@ -41,10 +41,11 @@ const layerLegends: Record<MapLayer, { colors: { color: string; label: string }[
   },
   rainfall: {
     colors: [
-      { color: '#22c55e', label: 'Normal' },
-      { color: '#eab308', label: 'Watch (>50mm)' },
-      { color: '#f97316', label: 'Warning (>100mm)' },
-      { color: '#dc2626', label: 'Emergency (>150mm)' },
+      { color: '#f8fafc', label: '0mm' },
+      { color: '#bfdbfe', label: '5mm' },
+      { color: '#60a5fa', label: '10mm' },
+      { color: '#2563eb', label: '15mm' },
+      { color: '#1e3a8a', label: '20mm+' },
     ]
   },
   temperature: {
@@ -147,6 +148,8 @@ const layerLegends: Record<MapLayer, { colors: { color: string; label: string }[
   },
 };
 
+export type DangerFilter = 'all' | 'low' | 'medium' | 'high';
+
 export default function Dashboard() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [selectedDistrict, setSelectedDistrict] = useState<string | null>(null);
@@ -154,6 +157,7 @@ export default function Dashboard() {
   const [selectedLayer, setSelectedLayer] = useState<MapLayer>('danger');
   const [loading, setLoading] = useState(true);
   const [showLegend, setShowLegend] = useState(true);
+  const [dangerFilter, setDangerFilter] = useState<DangerFilter>('all');
 
   useEffect(() => {
     const fetchAlerts = async () => {
@@ -184,20 +188,21 @@ export default function Dashboard() {
       </div>
 
       {/* Controls */}
-      <div className="px-4 py-3 bg-gray-50 border-b">
-        <div className="max-w-7xl mx-auto space-y-3">
-          {/* Row 1: Current Weather Layers */}
+      <div className="px-4 py-2 bg-gray-50 border-b">
+        <div className="max-w-7xl mx-auto">
+          {/* Single Row: Current + Rainfall Period + Forecast */}
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-medium text-gray-700 shrink-0">Current:</span>
+            {/* Current Weather Layers */}
+            <span className="text-xs font-medium text-gray-500 shrink-0">Current:</span>
             <div className="flex flex-wrap gap-1">
               {layerOptions.filter(l => l.group === 'current').map((layer) => (
                 <button
                   key={layer.id}
                   onClick={() => setSelectedLayer(layer.id)}
                   title={layer.description}
-                  className={`px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-all flex items-center gap-1 ${
+                  className={`px-2 py-1 text-xs font-medium rounded transition-all flex items-center gap-1 ${
                     selectedLayer === layer.id
-                      ? 'bg-blue-600 text-white shadow-md'
+                      ? 'bg-blue-600 text-white shadow-sm'
                       : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
                   }`}
                 >
@@ -206,17 +211,18 @@ export default function Dashboard() {
                 </button>
               ))}
             </div>
-          </div>
 
-          {/* Row 2: Rainfall Period */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-medium text-gray-700 shrink-0">Rainfall:</span>
-            <div className="flex rounded-lg overflow-hidden border border-gray-300 shadow-sm">
+            {/* Divider */}
+            <div className="h-6 w-px bg-gray-300 mx-1 hidden sm:block"></div>
+
+            {/* Rainfall Period */}
+            <span className="text-xs font-medium text-gray-500 shrink-0">Period:</span>
+            <div className="flex rounded overflow-hidden border border-gray-300 shadow-sm">
               {[24, 48, 72].map((hours) => (
                 <button
                   key={hours}
                   onClick={() => setSelectedHours(hours)}
-                  className={`px-3 py-1 text-sm font-semibold transition-all ${
+                  className={`px-2 py-1 text-xs font-semibold transition-all ${
                     selectedHours === hours
                       ? 'bg-blue-600 text-white'
                       : 'bg-white text-gray-700 hover:bg-gray-100'
@@ -226,20 +232,21 @@ export default function Dashboard() {
                 </button>
               ))}
             </div>
-          </div>
 
-          {/* Row 3: Forecast Layers */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-medium text-gray-700 shrink-0">Forecast:</span>
+            {/* Divider */}
+            <div className="h-6 w-px bg-gray-300 mx-1 hidden sm:block"></div>
+
+            {/* Forecast Layers */}
+            <span className="text-xs font-medium text-gray-500 shrink-0">Forecast:</span>
             <div className="flex flex-wrap gap-1">
               {layerOptions.filter(l => l.group === 'forecast').map((layer) => (
                 <button
                   key={layer.id}
                   onClick={() => setSelectedLayer(layer.id)}
                   title={layer.description}
-                  className={`px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-all flex items-center gap-1 ${
+                  className={`px-2 py-1 text-xs font-medium rounded transition-all flex items-center gap-1 ${
                     selectedLayer === layer.id
-                      ? 'bg-purple-600 text-white shadow-md'
+                      ? 'bg-purple-600 text-white shadow-sm'
                       : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
                   }`}
                 >
@@ -252,7 +259,7 @@ export default function Dashboard() {
             {/* Legend Toggle */}
             <button
               onClick={() => setShowLegend(!showLegend)}
-              className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1 ml-auto"
+              className="text-xs text-gray-600 hover:text-gray-900 flex items-center gap-1 ml-auto"
             >
               {showLegend ? '▼' : '▶'} Legend
             </button>
@@ -260,19 +267,51 @@ export default function Dashboard() {
 
           {/* Legend */}
           {showLegend && (
-            <div className="flex flex-wrap gap-2 text-xs bg-white p-2 rounded-lg border">
+            <div className="flex flex-wrap gap-2 text-xs bg-white p-2 rounded-lg border mt-2">
               <span className="font-medium text-gray-700 mr-2">
                 {layerOptions.find(l => l.id === selectedLayer)?.label}:
               </span>
-              {currentLegend.colors.map((item, idx) => (
-                <div key={idx} className="flex items-center gap-1">
-                  <span
-                    className="w-4 h-4 rounded border border-gray-300"
-                    style={{ backgroundColor: item.color }}
-                  ></span>
-                  <span className="text-gray-600">{item.label}</span>
-                </div>
-              ))}
+              {selectedLayer === 'danger' ? (
+                <>
+                  <button
+                    onClick={() => setDangerFilter(dangerFilter === 'all' ? 'all' : 'all')}
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded transition-all ${
+                      dangerFilter === 'all' ? 'bg-gray-200 ring-2 ring-gray-400' : 'hover:bg-gray-100'
+                    }`}
+                  >
+                    <span className="w-4 h-4 rounded border border-gray-300 bg-gradient-to-r from-green-500 via-yellow-500 to-red-500"></span>
+                    <span className="text-gray-600">All</span>
+                  </button>
+                  {currentLegend.colors.map((item, idx) => {
+                    const filterValue = idx === 0 ? 'low' : idx === 1 ? 'medium' : 'high';
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => setDangerFilter(dangerFilter === filterValue ? 'all' : filterValue as DangerFilter)}
+                        className={`flex items-center gap-1 px-2 py-0.5 rounded transition-all ${
+                          dangerFilter === filterValue ? 'bg-gray-200 ring-2 ring-blue-500' : 'hover:bg-gray-100'
+                        }`}
+                      >
+                        <span
+                          className="w-4 h-4 rounded border border-gray-300"
+                          style={{ backgroundColor: item.color }}
+                        ></span>
+                        <span className="text-gray-600">{item.label}</span>
+                      </button>
+                    );
+                  })}
+                </>
+              ) : (
+                currentLegend.colors.map((item, idx) => (
+                  <div key={idx} className="flex items-center gap-1">
+                    <span
+                      className="w-4 h-4 rounded border border-gray-300"
+                      style={{ backgroundColor: item.color }}
+                    ></span>
+                    <span className="text-gray-600">{item.label}</span>
+                  </div>
+                ))
+              )}
             </div>
           )}
         </div>
@@ -287,6 +326,7 @@ export default function Dashboard() {
               onDistrictSelect={setSelectedDistrict}
               hours={selectedHours}
               layer={selectedLayer}
+              dangerFilter={dangerFilter}
             />
           </div>
         </div>

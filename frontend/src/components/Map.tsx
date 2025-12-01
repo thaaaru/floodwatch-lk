@@ -39,6 +39,24 @@ function MapController({ weatherData }: MapControllerProps) {
 }
 
 // Color scale functions for different data types
+
+// Rainfall color: white to dark blue gradient for range 1-20mm
+function getRainfallColor(rainfall: number | null): string {
+  if (rainfall === null || rainfall <= 0) return '#f8fafc'; // Very light (almost white)
+  if (rainfall >= 20) return '#1e3a8a'; // Dark blue (blue-900)
+
+  // Linear interpolation from white (#f8fafc) to dark blue (#1e3a8a) for 1-20mm range
+  const ratio = Math.min(rainfall / 20, 1);
+
+  // RGB values for white-ish (#f8fafc): 248, 250, 252
+  // RGB values for dark blue (#1e3a8a): 30, 58, 138
+  const r = Math.round(248 - (248 - 30) * ratio);
+  const g = Math.round(250 - (250 - 58) * ratio);
+  const b = Math.round(252 - (252 - 138) * ratio);
+
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
 function getTemperatureColor(temp: number | null): string {
   if (temp === null) return '#9ca3af';
   if (temp >= 35) return '#dc2626';
@@ -230,13 +248,16 @@ function createAlertIcon(color: string, alertLevel: string): L.DivIcon {
   });
 }
 
+export type DangerFilter = 'all' | 'low' | 'medium' | 'high';
+
 interface MapProps {
   onDistrictSelect?: (district: string) => void;
   hours: number;
   layer: MapLayer;
+  dangerFilter?: DangerFilter;
 }
 
-export default function Map({ onDistrictSelect, hours, layer }: MapProps) {
+export default function Map({ onDistrictSelect, hours, layer, dangerFilter = 'all' }: MapProps) {
   const [weatherData, setWeatherData] = useState<WeatherSummary[]>([]);
   const [forecastData, setForecastData] = useState<DistrictForecast[]>([]);
   const [loading, setLoading] = useState(true);
@@ -366,14 +387,31 @@ export default function Map({ onDistrictSelect, hours, layer }: MapProps) {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [weather, forecast] = await Promise.all([
+        // Use Promise.allSettled to handle partial failures gracefully
+        // Weather data is essential, forecast is optional
+        const [weatherResult, forecastResult] = await Promise.allSettled([
           api.getAllWeather(hours),
           api.getAllForecast()
         ]);
+
         if (isMounted) {
-          setWeatherData(weather);
-          setForecastData(forecast);
-          setError('');
+          // Weather is required - fail if it doesn't load
+          if (weatherResult.status === 'fulfilled') {
+            setWeatherData(weatherResult.value);
+            setError('');
+          } else {
+            setError('Failed to load weather data');
+            console.error('Weather fetch failed:', weatherResult.reason);
+          }
+
+          // Forecast is optional - use empty array if it fails
+          if (forecastResult.status === 'fulfilled') {
+            setForecastData(forecastResult.value);
+          } else {
+            console.warn('Forecast fetch failed (non-critical):', forecastResult.reason);
+            // Keep existing forecast data or use empty array
+            setForecastData(prev => prev.length > 0 ? prev : []);
+          }
         }
       } catch (err) {
         if (isMounted) {
@@ -441,7 +479,8 @@ export default function Map({ onDistrictSelect, hours, layer }: MapProps) {
 
     switch (layer) {
       case 'rainfall':
-        return getAlertColor(district.alert_level);
+        const rainfallMm = hours === 24 ? district.rainfall_24h_mm : hours === 48 ? district.rainfall_48h_mm : district.rainfall_72h_mm;
+        return getRainfallColor(rainfallMm);
       case 'danger':
         return getDangerColor(district.danger_level);
       case 'temperature':
@@ -490,8 +529,14 @@ export default function Map({ onDistrictSelect, hours, layer }: MapProps) {
     }
   };
 
+  // Filter weather data based on danger filter
+  const filteredWeatherData = useMemo(() => {
+    if (dangerFilter === 'all') return weatherData;
+    return weatherData.filter(district => district.danger_level === dangerFilter);
+  }, [weatherData, dangerFilter]);
+
   const markers = useMemo(() => {
-    return weatherData.map((district) => {
+    return filteredWeatherData.map((district) => {
       const forecast = forecastByDistrict[district.district];
       const rainfallValue = hours === 24
         ? district.rainfall_24h_mm
@@ -653,7 +698,7 @@ export default function Map({ onDistrictSelect, hours, layer }: MapProps) {
         </Marker>
       );
     });
-  }, [weatherData, forecastByDistrict, hours, layer, onDistrictSelect, isForecastLayer, forecastDayIndex]);
+  }, [filteredWeatherData, forecastByDistrict, hours, layer, onDistrictSelect, isForecastLayer, forecastDayIndex]);
 
   // River station markers
   const riverMarkers = useMemo(() => {
