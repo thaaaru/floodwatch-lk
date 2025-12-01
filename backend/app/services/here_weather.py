@@ -215,43 +215,59 @@ class HereWeatherService:
             return []
 
     async def fetch_all_observations(self) -> list[dict]:
-        """Fetch current weather for all locations"""
+        """Fetch current weather for all locations in parallel"""
+        import asyncio
+
         api_key = self.settings.here_api_key
 
         if not api_key:
             logger.warning("HERE API key not configured")
             return []
 
-        observations = []
+        # Fetch all observations in parallel for much faster response
+        tasks = [
+            self.fetch_observation(loc["lat"], loc["lon"], loc["name"])
+            for loc in SRI_LANKA_LOCATIONS
+        ]
 
-        for loc in SRI_LANKA_LOCATIONS:
-            result = await self.fetch_observation(loc["lat"], loc["lon"], loc["name"])
-            if result:
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        observations = []
+        for result in results:
+            if result and not isinstance(result, Exception):
                 observations.append(result)
 
         self._observations_cache = observations
         self._last_fetch = datetime.utcnow()
 
-        logger.info(f"Fetched HERE weather observations for {len(observations)} locations")
+        logger.info(f"Fetched HERE weather observations for {len(observations)} locations (parallel)")
         return observations
 
     async def fetch_all_forecasts(self) -> list[dict]:
-        """Fetch forecasts for all locations"""
+        """Fetch forecasts for all locations in parallel"""
+        import asyncio
+
         api_key = self.settings.here_api_key
 
         if not api_key:
             logger.warning("HERE API key not configured")
             return []
 
-        forecasts = []
+        # Fetch all forecasts in parallel for much faster response
+        tasks = [
+            self.fetch_forecast(loc["lat"], loc["lon"], loc["name"])
+            for loc in SRI_LANKA_LOCATIONS
+        ]
 
-        for loc in SRI_LANKA_LOCATIONS:
-            result = await self.fetch_forecast(loc["lat"], loc["lon"], loc["name"])
-            if result:
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        forecasts = []
+        for result in results:
+            if result and not isinstance(result, Exception):
                 forecasts.append(result)
 
         self._forecasts_cache = forecasts
-        logger.info(f"Fetched HERE weather forecasts for {len(forecasts)} locations")
+        logger.info(f"Fetched HERE weather forecasts for {len(forecasts)} locations (parallel)")
         return forecasts
 
     async def fetch_all_alerts(self) -> list[dict]:

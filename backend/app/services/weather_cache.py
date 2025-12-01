@@ -85,9 +85,28 @@ class WeatherCache:
             return -1
         return int((datetime.now() - self._last_update).total_seconds())
 
+    async def _fetch_district_weather(self, district: dict) -> tuple[str, dict | None]:
+        """Fetch weather for a single district. Returns (district_name, data or None)."""
+        try:
+            weather_data = await self.weather_service.get_weather(
+                district["latitude"],
+                district["longitude"],
+                hours=72  # Get max period, we can extract 24/48/72 from it
+            )
+            return (district["name"], {
+                "district": district["name"],
+                "latitude": district["latitude"],
+                "longitude": district["longitude"],
+                "data": weather_data,
+                "fetched_at": datetime.now().isoformat()
+            })
+        except Exception as e:
+            logger.error(f"Failed to fetch weather for {district['name']}: {e}")
+            return (district["name"], None)
+
     async def refresh_cache(self, force: bool = False) -> bool:
         """
-        Refresh weather data for all districts.
+        Refresh weather data for all districts using parallel requests.
         Returns True if refresh was successful.
         """
         async with self._lock:
@@ -96,43 +115,32 @@ class WeatherCache:
                 logger.debug("Cache still valid, skipping refresh")
                 return True
 
-            logger.info("Refreshing weather cache for all districts...")
+            logger.info("Refreshing weather cache for all districts (parallel)...")
             districts = get_all_districts()
+
+            # Fetch all districts in parallel for much faster response
+            tasks = [self._fetch_district_weather(d) for d in districts]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+
             new_cache = {}
             success_count = 0
 
-            for district in districts:
-                try:
-                    # Fetch weather data for all time periods
-                    weather_data = await self.weather_service.get_weather(
-                        district["latitude"],
-                        district["longitude"],
-                        hours=72  # Get max period, we can extract 24/48/72 from it
-                    )
-
-                    new_cache[district["name"]] = {
-                        "district": district["name"],
-                        "latitude": district["latitude"],
-                        "longitude": district["longitude"],
-                        "data": weather_data,
-                        "fetched_at": datetime.now().isoformat()
-                    }
+            for result in results:
+                if isinstance(result, Exception):
+                    continue
+                district_name, data = result
+                if data:
+                    new_cache[district_name] = data
                     success_count += 1
-
-                    # Small delay to avoid rate limiting
-                    await asyncio.sleep(0.1)
-
-                except Exception as e:
-                    logger.error(f"Failed to fetch weather for {district['name']}: {e}")
+                elif district_name in self._cache:
                     # Keep old data if available
-                    if district["name"] in self._cache:
-                        new_cache[district["name"]] = self._cache[district["name"]]
+                    new_cache[district_name] = self._cache[district_name]
 
             if success_count > 0:
                 self._cache = new_cache
                 self._last_update = datetime.now()
                 self._save_cache_to_disk()
-                logger.info(f"Weather cache refreshed: {success_count}/{len(districts)} districts updated")
+                logger.info(f"Weather cache refreshed: {success_count}/{len(districts)} districts updated (parallel)")
                 return True
             else:
                 logger.error("Failed to refresh any district data")

@@ -49,3 +49,4 @@ htmlcov/
 nohup.out
 cache/*.json
 tsconfig.tsbuildinfo
+.env*.local

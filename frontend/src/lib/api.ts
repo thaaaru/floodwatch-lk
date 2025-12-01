@@ -1,5 +1,5 @@
 // Production API URL - hardcoded for reliability
-const PRODUCTION_API = 'https://api.floodwatch.hackandbuild.dev';
+const PRODUCTION_API = 'https://api.hackandbuild.dev';
 
 // Use production API in production, localhost in development
 const BACKEND_BASE = process.env.NODE_ENV === 'production'
