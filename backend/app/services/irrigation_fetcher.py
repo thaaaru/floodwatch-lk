@@ -39,9 +39,9 @@ STATION_METADATA = {
         "district_ids": ["LK-11", "LK-12"],
         "lat": 6.909166666666667,
         "lon": 80.08194444444445,
-        "alert_level_m": 7.0,   # DMC Official: Alert at 7.00m
-        "minor_flood_m": 8.0,   # DMC Official: Minor Flood at 8.00m
-        "major_flood_m": 10.0,  # DMC Official: Major Flood at 10.00m
+        "alert_level_m": 5.5,   # DMC Official
+        "minor_flood_m": 6.5,   # DMC Official: Minor Flood at 6.5m
+        "major_flood_m": 10.0,  # DMC Official: Major Flood at 10.0m
     },
     "Nagalagam Street": {
         "river": "Kelani Ganga",
@@ -60,18 +60,18 @@ STATION_METADATA = {
         "district_ids": ["LK-92"],
         "lat": 6.989722222222222,
         "lon": 80.41027777777778,
-        "alert_level_m": 6.0,
-        "minor_flood_m": 7.0,
-        "major_flood_m": 8.5,
+        "alert_level_m": 7.0,   # DMC Official
+        "minor_flood_m": 8.5,   # DMC Official: Minor Flood at 8.5m
+        "major_flood_m": 10.0,  # No DMC major flood defined, using estimate
     },
     "Holombuwa": {
         "river": "Kelani Ganga",
         "district_ids": ["LK-92"],
         "lat": 7.037777777777778,
         "lon": 80.26472222222222,
-        "alert_level_m": 3.0,
-        "minor_flood_m": 3.5,
-        "major_flood_m": 4.5,
+        "alert_level_m": 3.5,   # DMC Official
+        "minor_flood_m": 4.5,   # DMC Official: Minor Flood at 4.5m
+        "major_flood_m": 6.0,   # No DMC major flood defined, using estimate
     },
     "Deraniyagala": {
         "river": "Seethawaka Ganga",
