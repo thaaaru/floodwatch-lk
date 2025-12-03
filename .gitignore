@@ -11,6 +11,9 @@ ENV/
 
 # Environment files with secrets
 .env
+.env.production
+.env.local
+.env.development
 !.env.example
 
 # Database

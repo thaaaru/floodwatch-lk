@@ -1,39 +1,18 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import Legend from '@/components/map/Legend';
+import { createColorLUT, getColorFromLUT } from '@/utils/scaleColor';
+import {
+  interpolateWind,
+  getLODConfig,
+  formatWindSpeed,
+  type WindVector,
+} from '@/utils/windToVector';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.hackandbuild.dev';
 
-// Wind visualization configuration
-const PARTICLE_COUNT = 6000;
-const PARTICLE_LINE_WIDTH = 2.5;
-const SPEED_FACTOR = 0.00012;
-const PARTICLE_MAX_AGE = 80;
-const FADE_OPACITY = 0.92; // Higher = longer trails
-
-// Color scale for wind speed (m/s)
-const WIND_COLORS = [
-  { speed: 0, color: [98, 182, 239] },
-  { speed: 3, color: [127, 205, 187] },
-  { speed: 6, color: [161, 217, 155] },
-  { speed: 9, color: [255, 255, 153] },
-  { speed: 12, color: [255, 204, 102] },
-  { speed: 15, color: [255, 153, 51] },
-  { speed: 18, color: [255, 102, 51] },
-  { speed: 21, color: [255, 51, 51] },
-  { speed: 25, color: [204, 0, 102] },
-];
-
-function getWindColor(speed: number): string {
-  for (let i = WIND_COLORS.length - 1; i >= 0; i--) {
-    if (speed >= WIND_COLORS[i].speed) {
-      const [r, g, b] = WIND_COLORS[i].color;
-      return `rgb(${r}, ${g}, ${b})`;
-    }
-  }
-  return 'rgb(98, 182, 239)';
-}
-
+// Types
 interface WindData {
   lon: number[];
   lat: number[];
@@ -44,11 +23,13 @@ interface WindData {
     min_speed: number;
     max_speed: number;
     mean_speed: number;
+    data_source?: string;
   };
   run_date: string;
   run_hour: string;
   forecast_hour: number;
   valid_time: string;
+  generated_at?: string;
 }
 
 interface WindMeta {
@@ -64,11 +45,30 @@ interface WindMeta {
   } | null;
 }
 
+interface Particle {
+  x: number;
+  y: number;
+  age: number;
+  maxAge: number;
+}
+
+interface HoverInfo {
+  x: number;
+  y: number;
+  speed: number;
+  direction: number;
+  cardinal: string;
+}
+
+
+// Pre-computed color LUT for performance
+const COLOR_LUT = createColorLUT(50, 200);
+
 export default function WindPage() {
   const mapRef = useRef<any>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const trailCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationRef = useRef<number | null>(null);
-  const particlesRef = useRef<Array<{ x: number; y: number; age: number; maxAge: number }>>([]);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const windDataRef = useRef<WindData | null>(null);
 
@@ -78,7 +78,44 @@ export default function WindPage() {
   const [loading, setLoading] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null);
+  const [currentZoom, setCurrentZoom] = useState(7);
   const playIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Calculate the forecast hour closest to current time
+  const getClosestForecastHour = (runDate: string, runHour: string, forecastHours: number[]): number => {
+    try {
+      // Parse run time: runDate is "YYYYMMDD", runHour is "00" or "06" or "12" or "18"
+      const year = parseInt(runDate.slice(0, 4));
+      const month = parseInt(runDate.slice(4, 6)) - 1; // JS months are 0-indexed
+      const day = parseInt(runDate.slice(6, 8));
+      const hour = parseInt(runHour);
+
+      const runTime = new Date(Date.UTC(year, month, day, hour, 0, 0));
+      const now = new Date();
+
+      // Calculate hours since model run
+      const hoursSinceRun = (now.getTime() - runTime.getTime()) / (1000 * 60 * 60);
+
+      // Find the closest forecast hour that's >= current time offset
+      // This ensures we show current or future conditions, not past
+      let closestHour = forecastHours[0];
+      let minDiff = Math.abs(forecastHours[0] - hoursSinceRun);
+
+      for (const fh of forecastHours) {
+        const diff = Math.abs(fh - hoursSinceRun);
+        if (diff < minDiff) {
+          minDiff = diff;
+          closestHour = fh;
+        }
+      }
+
+      return closestHour;
+    } catch (e) {
+      console.error('Error calculating closest forecast hour:', e);
+      return forecastHours[0];
+    }
+  };
 
   // Fetch metadata
   useEffect(() => {
@@ -88,7 +125,13 @@ export default function WindPage() {
         const data = await res.json();
         setWindMeta(data);
         if (data.latest_run?.forecast_hours?.length > 0) {
-          setSelectedHour(data.latest_run.forecast_hours[0]);
+          // Auto-select the forecast hour closest to current time
+          const closestHour = getClosestForecastHour(
+            data.latest_run.run_date,
+            data.latest_run.run_hour,
+            data.latest_run.forecast_hours
+          );
+          setSelectedHour(closestHour);
         }
       } catch (err) {
         console.error('Failed to fetch wind metadata:', err);
@@ -115,7 +158,7 @@ export default function WindPage() {
     fetchWind();
   }, [selectedHour]);
 
-  // Auto-play
+  // Auto-play forecast
   useEffect(() => {
     if (isPlaying && windMeta?.latest_run?.forecast_hours) {
       const hours = windMeta.latest_run.forecast_hours;
@@ -124,7 +167,7 @@ export default function WindPage() {
           const idx = hours.indexOf(prev);
           return hours[(idx + 1) % hours.length];
         });
-      }, 3000);
+      }, 2000);
     } else if (playIntervalRef.current) {
       clearInterval(playIntervalRef.current);
     }
@@ -133,62 +176,102 @@ export default function WindPage() {
     };
   }, [isPlaying, windMeta]);
 
+  // Interpolate wind at a point
+  const getWindAt = useCallback((lon: number, lat: number): WindVector | null => {
+    const data = windDataRef.current;
+    if (!data) return null;
+    return interpolateWind(lon, lat, data.lon, data.lat, data.u, data.v, data.speed);
+  }, []);
+
   // Initialize map
   useEffect(() => {
     if (typeof window === 'undefined' || !mapContainerRef.current || mapRef.current) return;
 
     const initMap = async () => {
       const L = (await import('leaflet')).default;
-      // CSS is imported globally in layout or via link tag
 
-      // Center on Sri Lanka with zoom that shows the full wind data area (4-12°N, 78-84°E)
+      const dataBounds = L.latLngBounds(L.latLng(-5.0, 68.0), L.latLng(20.0, 95.0));
+      const sriLankaBounds = L.latLngBounds(L.latLng(5.9, 79.4), L.latLng(9.9, 82.0));
+
       const map = L.map(mapContainerRef.current!, {
-        center: [8.0, 81.0],
-        zoom: 6,
+        center: [7.8, 80.7],
+        zoom: 7,
+        minZoom: 4,
+        maxZoom: 10,
         zoomControl: false,
         attributionControl: true,
+        maxBounds: dataBounds.pad(0.1),
+        maxBoundsViscosity: 0.8,
       });
 
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+      map.fitBounds(sriLankaBounds, { padding: [20, 20] });
+
+      // Light basemap for better visibility
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OpenStreetMap &copy; CARTO',
         subdomains: 'abcd',
-        maxZoom: 19
+        maxZoom: 10
       }).addTo(map);
 
       L.control.zoom({ position: 'topright' }).addTo(map);
 
       mapRef.current = map;
 
-      // Create canvas overlay - full screen
+      // Create canvases on top of map
+      const trailCanvas = document.createElement('canvas');
+      trailCanvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:400;';
+      mapContainerRef.current!.appendChild(trailCanvas);
+      trailCanvasRef.current = trailCanvas;
+
       const canvas = document.createElement('canvas');
-      canvas.style.position = 'absolute';
-      canvas.style.top = '0';
-      canvas.style.left = '0';
-      canvas.style.width = '100%';
-      canvas.style.height = '100%';
-      canvas.style.pointerEvents = 'none';
-      canvas.style.zIndex = '400';
+      canvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:401;';
       mapContainerRef.current!.appendChild(canvas);
       canvasRef.current = canvas;
 
       const resizeCanvas = () => {
-        if (canvas && mapContainerRef.current) {
+        if (canvas && trailCanvas && mapContainerRef.current) {
           const rect = mapContainerRef.current.getBoundingClientRect();
           canvas.width = rect.width;
           canvas.height = rect.height;
+          trailCanvas.width = rect.width;
+          trailCanvas.height = rect.height;
         }
       };
       resizeCanvas();
       window.addEventListener('resize', resizeCanvas);
-      map.on('resize', resizeCanvas);
-      map.on('move', resizeCanvas);
-      map.on('zoom', resizeCanvas);
+
+      // Track zoom changes
+      map.on('zoomend', () => {
+        setCurrentZoom(map.getZoom());
+      });
+
+      // Mouse move for hover info
+      map.on('mousemove', (e: any) => {
+        const wind = interpolateWind(
+          e.latlng.lng,
+          e.latlng.lat,
+          windDataRef.current?.lon || [],
+          windDataRef.current?.lat || [],
+          windDataRef.current?.u || [],
+          windDataRef.current?.v || [],
+          windDataRef.current?.speed || []
+        );
+        if (wind && wind.speed > 0) {
+          setHoverInfo({
+            x: e.containerPoint.x,
+            y: e.containerPoint.y,
+            speed: wind.speed,
+            direction: wind.direction,
+            cardinal: wind.cardinalDir,
+          });
+        } else {
+          setHoverInfo(null);
+        }
+      });
+
+      map.on('mouseout', () => setHoverInfo(null));
 
       setMapLoaded(true);
-
-      return () => {
-        window.removeEventListener('resize', resizeCanvas);
-      };
     };
 
     initMap();
@@ -202,178 +285,165 @@ export default function WindPage() {
     };
   }, []);
 
-  // Interpolate wind at a point
-  const interpolateWind = useCallback((lon: number, lat: number): { u: number; v: number; speed: number } | null => {
-    const data = windDataRef.current;
-    if (!data) return null;
-
-    const { lon: lons, lat: lats, u, v, speed } = data;
-
-    let i0 = -1, j0 = -1;
-    for (let i = 0; i < lons.length - 1; i++) {
-      if (lon >= lons[i] && lon <= lons[i + 1]) { i0 = i; break; }
-    }
-    for (let j = 0; j < lats.length - 1; j++) {
-      if (lat >= lats[j] && lat <= lats[j + 1]) { j0 = j; break; }
-    }
-
-    if (i0 < 0 || j0 < 0) return null;
-
-    const tx = (lon - lons[i0]) / (lons[i0 + 1] - lons[i0]);
-    const ty = (lat - lats[j0]) / (lats[j0 + 1] - lats[j0]);
-
-    const interp = (arr: number[][]) => {
-      const v00 = arr[j0][i0], v10 = arr[j0][i0 + 1];
-      const v01 = arr[j0 + 1][i0], v11 = arr[j0 + 1][i0 + 1];
-      return (1 - tx) * (1 - ty) * v00 + tx * (1 - ty) * v10 +
-             (1 - tx) * ty * v01 + tx * ty * v11;
-    };
-
-    return { u: interp(u), v: interp(v), speed: interp(speed) };
-  }, []);
-
-  // Animation loop
+  // Main rendering loop
   useEffect(() => {
-    if (!mapRef.current || !canvasRef.current || !windData || !mapLoaded) return;
+    if (!mapRef.current || !canvasRef.current || !trailCanvasRef.current || !windData || !mapLoaded) return;
 
     const map = mapRef.current;
     const canvas = canvasRef.current;
+    const trailCanvas = trailCanvasRef.current;
     const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    const trailCtx = trailCanvas.getContext('2d');
+    if (!ctx || !trailCtx) return;
 
-    // Wind data bounds from API
-    const dataBounds = {
-      lonMin: Math.min(...windData.lon),
-      lonMax: Math.max(...windData.lon),
-      latMin: Math.min(...windData.lat),
-      latMax: Math.max(...windData.lat),
+    let isAnimating = true;
+    const lodConfig = getLODConfig(currentZoom);
+
+    // Build wind field cache
+    const buildWindField = () => {
+      const { width, height } = canvas;
+      const cellSize = lodConfig.gridCellSize;
+      const cols = Math.ceil(width / cellSize);
+      const rows = Math.ceil(height / cellSize);
+      const field: Array<WindVector | null> = new Array(cols * rows);
+
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          const x = col * cellSize + cellSize / 2;
+          const y = row * cellSize + cellSize / 2;
+          const latlng = map.containerPointToLatLng([x, y]);
+          field[row * cols + col] = getWindAt(latlng.lng, latlng.lat);
+        }
+      }
+
+      return { field, cols, rows, cellSize };
     };
 
-    // Get current visible map bounds and expand particle area
-    const getVisibleBounds = () => {
-      const mapBounds = map.getBounds();
-      return {
-        lonMin: Math.max(dataBounds.lonMin, mapBounds.getWest()),
-        lonMax: Math.min(dataBounds.lonMax, mapBounds.getEast()),
-        latMin: Math.max(dataBounds.latMin, mapBounds.getSouth()),
-        latMax: Math.min(dataBounds.latMax, mapBounds.getNorth()),
-      };
+    const getWindAtPoint = (x: number, y: number, wf: ReturnType<typeof buildWindField>) => {
+      const { field, cols, rows, cellSize } = wf;
+      const col = Math.floor(x / cellSize);
+      const row = Math.floor(y / cellSize);
+      if (col < 0 || col >= cols || row < 0 || row >= rows) return null;
+      return field[row * cols + col];
     };
 
-    // Initialize particles across the visible map area (within data bounds)
+    // Initialize particles
     const initParticles = () => {
-      particlesRef.current = [];
-      const visibleBounds = getVisibleBounds();
-
-      // If visible area doesn't overlap with data, use data bounds
-      const bounds = (visibleBounds.lonMax > visibleBounds.lonMin && visibleBounds.latMax > visibleBounds.latMin)
-        ? visibleBounds
-        : dataBounds;
-
-      for (let i = 0; i < PARTICLE_COUNT; i++) {
-        particlesRef.current.push({
-          x: bounds.lonMin + Math.random() * (bounds.lonMax - bounds.lonMin),
-          y: bounds.latMin + Math.random() * (bounds.latMax - bounds.latMin),
-          age: Math.floor(Math.random() * PARTICLE_MAX_AGE),
-          maxAge: PARTICLE_MAX_AGE + Math.floor(Math.random() * 40),
+      const { width, height } = canvas;
+      const particles: Particle[] = [];
+      const count = lodConfig.particleCount;
+      for (let i = 0; i < count; i++) {
+        particles.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          age: Math.floor(Math.random() * 60),
+          maxAge: 50 + Math.floor(Math.random() * 30),
         });
       }
-    };
-    initParticles();
-
-    // Re-init particles when map moves
-    map.on('moveend', initParticles);
-
-    const project = (lon: number, lat: number) => {
-      const point = map.latLngToContainerPoint([lat, lon]);
-      return { x: point.x, y: point.y };
+      return particles;
     };
 
-    const animate = () => {
+    let windField = buildWindField();
+    let particles = initParticles();
+
+    // Rebuild on map move
+    const handleMoveEnd = () => {
+      windField = buildWindField();
+    };
+    map.on('moveend', handleMoveEnd);
+
+    const render = () => {
+      if (!isAnimating) return;
+
       const { width, height } = canvas;
+      const bounds = map.getBounds();
+      const zoom = map.getZoom();
+      const lod = getLODConfig(zoom);
 
-      // Fade trails - use destination-out for smooth fading
-      ctx.globalCompositeOperation = 'destination-out';
-      ctx.fillStyle = `rgba(0, 0, 0, ${1 - FADE_OPACITY})`;
-      ctx.fillRect(0, 0, width, height);
-      ctx.globalCompositeOperation = 'source-over';
+      // Clear main canvas
+      ctx.clearRect(0, 0, width, height);
 
-      const particles = particlesRef.current;
-      const currentBounds = getVisibleBounds();
-      const resetBounds = (currentBounds.lonMax > currentBounds.lonMin && currentBounds.latMax > currentBounds.latMin)
-        ? currentBounds
-        : dataBounds;
+      // Particle layer - transparent flowing wind lines
+      // Fade existing trails for animation effect (transparent fade)
+      trailCtx.globalCompositeOperation = 'destination-out';
+      trailCtx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+      trailCtx.fillRect(0, 0, width, height);
+      trailCtx.globalCompositeOperation = 'source-over';
 
-      for (const p of particles) {
-        // Reset particles that go out of data bounds or age out
-        if (p.x < dataBounds.lonMin || p.x > dataBounds.lonMax ||
-            p.y < dataBounds.latMin || p.y > dataBounds.latMax || p.age > p.maxAge) {
-          p.x = resetBounds.lonMin + Math.random() * (resetBounds.lonMax - resetBounds.lonMin);
-          p.y = resetBounds.latMin + Math.random() * (resetBounds.latMax - resetBounds.latMin);
-          p.age = 0;
-          continue;
+      const speedMult = lod.particleSpeed * 0.4 * Math.pow(1.3, zoom - 7);
+
+      for (const particle of particles) {
+        const wind = getWindAtPoint(particle.x, particle.y, windField);
+
+        if (wind && wind.speed > 0.5) {
+          const oldX = particle.x;
+          const oldY = particle.y;
+
+          // Wind direction: particles flow in the direction the wind is blowing TO
+          // U positive = eastward = +X on screen
+          // V positive = northward = -Y on screen (screen Y is inverted)
+          particle.x += wind.u * speedMult;
+          particle.y -= wind.v * speedMult;
+
+          const rgb = getColorFromLUT(COLOR_LUT, wind.speed, 50);
+          const ageRatio = particle.age / particle.maxAge;
+          let alpha = 0.6;
+          if (ageRatio < 0.2) alpha = (ageRatio / 0.2) * 0.6;
+          else if (ageRatio > 0.6) alpha = ((1 - ageRatio) / 0.4) * 0.6;
+
+          trailCtx.beginPath();
+          trailCtx.moveTo(oldX, oldY);
+          trailCtx.lineTo(particle.x, particle.y);
+          trailCtx.strokeStyle = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`;
+          trailCtx.lineWidth = 1.5;
+          trailCtx.stroke();
+
+          particle.age++;
+        } else {
+          particle.age += 5;
         }
 
-        const wind = interpolateWind(p.x, p.y);
-        if (!wind) { p.age++; continue; }
-
-        const pos = project(p.x, p.y);
-
-        // Skip if outside visible canvas
-        if (pos.x < -50 || pos.x > width + 50 || pos.y < -50 || pos.y > height + 50) {
-          p.age++;
-          continue;
+        if (particle.age > particle.maxAge ||
+            particle.x < -20 || particle.x > width + 20 ||
+            particle.y < -20 || particle.y > height + 20) {
+          particle.x = Math.random() * width;
+          particle.y = Math.random() * height;
+          particle.age = 0;
+          particle.maxAge = 50 + Math.floor(Math.random() * 30);
         }
-
-        const newX = p.x + wind.u * SPEED_FACTOR;
-        const newY = p.y + wind.v * SPEED_FACTOR;
-        const newPos = project(newX, newY);
-
-        // Calculate alpha based on age - particles are brighter when young
-        const ageRatio = p.age / p.maxAge;
-        const alpha = Math.max(0.3, 1 - ageRatio * 0.7);
-        const color = getWindColor(wind.speed);
-
-        // Draw particle trail
-        ctx.beginPath();
-        ctx.moveTo(pos.x, pos.y);
-        ctx.lineTo(newPos.x, newPos.y);
-
-        // Thicker lines for stronger winds
-        const lineWidth = PARTICLE_LINE_WIDTH + (wind.speed / 10);
-        ctx.lineWidth = lineWidth;
-        ctx.strokeStyle = color.replace('rgb', 'rgba').replace(')', `, ${alpha})`);
-        ctx.lineCap = 'round';
-        ctx.stroke();
-
-        p.x = newX;
-        p.y = newY;
-        p.age++;
       }
 
-      animationRef.current = requestAnimationFrame(animate);
+      // Draw particles on main canvas
+      ctx.drawImage(trailCanvas, 0, 0);
+
+      animationRef.current = requestAnimationFrame(render);
     };
 
-    animate();
-
-    const handleMoveStart = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-    };
-    map.on('movestart', handleMoveStart);
+    render();
 
     return () => {
-      map.off('movestart', handleMoveStart);
-      map.off('moveend', initParticles);
+      isAnimating = false;
+      map.off('moveend', handleMoveEnd);
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
-  }, [windData, interpolateWind, mapLoaded]);
+  }, [windData, mapLoaded, currentZoom, getWindAt]);
 
   const formatTime = (iso: string) => {
     try {
       return new Date(iso).toLocaleString('en-US', {
-        weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+        weekday: 'short', month: 'short', day: 'numeric',
+        hour: '2-digit', minute: '2-digit', timeZoneName: 'short'
       });
     } catch { return iso; }
+  };
+
+  const formatRunTime = (date: string, hour: string) => {
+    try {
+      const d = new Date(`${date.slice(0,4)}-${date.slice(4,6)}-${date.slice(6,8)}T${hour}:00:00Z`);
+      return d.toLocaleString('en-US', {
+        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short'
+      });
+    } catch { return `${date} ${hour}Z`; }
   };
 
   return (
@@ -381,9 +451,25 @@ export default function WindPage() {
       {/* Map Container */}
       <div ref={mapContainerRef} className="absolute inset-0" style={{ zIndex: 1 }} />
 
+      {/* Hover tooltip */}
+      {hoverInfo && (
+        <div
+          className="absolute z-[1002] bg-slate-800/95 backdrop-blur-sm rounded-lg px-3 py-2 border border-slate-600 pointer-events-none shadow-lg"
+          style={{ left: hoverInfo.x + 15, top: hoverInfo.y - 40 }}
+        >
+          <div className="text-sm font-semibold text-white">
+            {formatWindSpeed(hoverInfo.speed)} m/s
+          </div>
+          <div className="text-xs text-slate-400">
+            From {hoverInfo.cardinal} ({Math.round(hoverInfo.direction)}°)
+          </div>
+        </div>
+      )}
+
       {/* Controls Panel */}
       <div className="absolute top-4 left-4 z-[1000]">
-        <div className="bg-slate-800/95 backdrop-blur-sm rounded-2xl shadow-lg p-4 border border-slate-700/50 w-72">
+        <div className="bg-slate-800/95 backdrop-blur-sm rounded-2xl shadow-lg p-4 border border-slate-700/50 w-80">
+          {/* Header */}
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
               <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -391,23 +477,58 @@ export default function WindPage() {
               </svg>
             </div>
             <div>
-              <h1 className="text-white font-semibold text-sm">Wind Visualization</h1>
-              <p className="text-slate-400 text-xs">GFS 10m Wind - Sri Lanka</p>
+              <h1 className="text-white font-semibold text-sm">Wind Map</h1>
+              <p className="text-slate-400 text-xs">GFS 10m Surface Wind</p>
             </div>
           </div>
 
-          {/* Time Controls */}
+
+          {/* Forecast Time Controls */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs text-slate-400">Forecast Hour</span>
-              <button
-                onClick={() => setIsPlaying(!isPlaying)}
-                className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
-                  isPlaying ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'
-                }`}
-              >
-                {isPlaying ? 'Pause' : 'Play'}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    if (windMeta?.latest_run) {
+                      const nowHour = getClosestForecastHour(
+                        windMeta.latest_run.run_date,
+                        windMeta.latest_run.run_hour,
+                        windMeta.latest_run.forecast_hours
+                      );
+                      setSelectedHour(nowHour);
+                      setIsPlaying(false);
+                    }
+                  }}
+                  className="px-2 py-1 rounded-lg text-xs font-medium transition-all bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30"
+                  title="Jump to current time"
+                >
+                  Now
+                </button>
+                <button
+                  onClick={() => setIsPlaying(!isPlaying)}
+                  className={`px-3 py-1 rounded-lg text-xs font-medium transition-all flex items-center gap-1 ${
+                    isPlaying ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'
+                  }`}
+                >
+                  {isPlaying ? (
+                    <>
+                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                        <rect x="6" y="4" width="4" height="16" />
+                        <rect x="14" y="4" width="4" height="16" />
+                      </svg>
+                      Pause
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                      Play
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
 
             <select
@@ -415,9 +536,19 @@ export default function WindPage() {
               onChange={(e) => setSelectedHour(Number(e.target.value))}
               className="w-full bg-slate-700 text-white text-sm rounded-lg px-3 py-2 border border-slate-600 focus:outline-none focus:ring-2 focus:ring-cyan-500"
             >
-              {windMeta?.latest_run?.forecast_hours?.map((h) => (
-                <option key={h} value={h}>+{h}h {h === 0 ? '(Analysis)' : 'Forecast'}</option>
-              ))}
+              {windMeta?.latest_run?.forecast_hours?.map((h) => {
+                const nowHour = windMeta.latest_run ? getClosestForecastHour(
+                  windMeta.latest_run.run_date,
+                  windMeta.latest_run.run_hour,
+                  windMeta.latest_run.forecast_hours
+                ) : 0;
+                const isNow = h === nowHour;
+                return (
+                  <option key={h} value={h}>
+                    +{h}h {h === 0 ? '(Analysis)' : 'Forecast'}{isNow ? ' ← Now' : ''}
+                  </option>
+                );
+              })}
             </select>
 
             {windMeta?.latest_run?.forecast_hours && (
@@ -430,15 +561,19 @@ export default function WindPage() {
                 className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
               />
             )}
-
-            {windData?.valid_time && (
-              <div className="text-center">
-                <span className="text-xs text-cyan-400 font-medium">
-                  {formatTime(windData.valid_time)}
-                </span>
-              </div>
-            )}
           </div>
+
+          {/* Valid Time Display */}
+          {windData?.valid_time && (
+            <div className="mt-3 pt-3 border-t border-slate-700">
+              <div className="text-center">
+                <div className="text-xs text-slate-500 mb-1">Valid Time</div>
+                <div className="text-sm text-cyan-400 font-medium">
+                  {formatTime(windData.valid_time)}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Stats */}
           {windData?.meta && (
@@ -462,32 +597,45 @@ export default function WindPage() {
 
       {/* Legend */}
       <div className="absolute bottom-8 left-4 z-[1000]">
-        <div className="bg-slate-800/95 backdrop-blur-sm rounded-xl p-3 border border-slate-700/50">
-          <div className="text-xs text-slate-400 font-medium mb-2">Wind Speed (m/s)</div>
-          <div className="flex gap-1">
-            {WIND_COLORS.map((item, i) => (
-              <div key={i} className="flex flex-col items-center">
-                <div
-                  className="w-5 h-5 rounded"
-                  style={{ backgroundColor: `rgb(${item.color.join(',')})` }}
-                />
-                <span className="text-[9px] text-slate-500 mt-1">{item.speed}</span>
-              </div>
-            ))}
+        <Legend
+          minSpeed={windData?.meta?.min_speed ?? 0}
+          maxSpeed={Math.min(windData?.meta?.max_speed ?? 25, 30)}
+        />
+      </div>
+
+      {/* Metadata Bar */}
+      <div className="absolute bottom-8 right-4 z-[1000]">
+        <div className="bg-slate-800/90 backdrop-blur-sm rounded-lg px-4 py-3 border border-slate-700/50 space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-slate-500 w-20">Model:</span>
+            <span className="text-xs text-slate-300">{windData?.meta?.data_source === 'gfs' ? 'GFS 0.25°' : 'GFS Synthetic'}</span>
+          </div>
+          {windMeta?.latest_run && (
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-slate-500 w-20">Run:</span>
+              <span className="text-xs text-slate-300">
+                {formatRunTime(windMeta.latest_run.run_date, windMeta.latest_run.run_hour)}
+              </span>
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-slate-500 w-20">Forecast:</span>
+            <span className="text-xs text-slate-300">+{selectedHour}h</span>
+          </div>
+          {windData?.generated_at && (
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-slate-500 w-20">Updated:</span>
+              <span className="text-xs text-slate-300">
+                {new Date(windData.generated_at).toLocaleTimeString()}
+              </span>
+            </div>
+          )}
+          <div className="flex items-center gap-2 pt-1 border-t border-slate-700/50">
+            <span className="text-[10px] text-slate-500 w-20">Zoom:</span>
+            <span className="text-xs text-slate-300">{currentZoom.toFixed(1)}</span>
           </div>
         </div>
       </div>
-
-      {/* Model Info */}
-      {windMeta?.latest_run && (
-        <div className="absolute bottom-8 right-4 z-[1000]">
-          <div className="bg-slate-800/90 backdrop-blur-sm rounded-lg px-3 py-2 border border-slate-700/50">
-            <span className="text-[10px] text-slate-400">
-              GFS {windMeta.latest_run.run_date} {windMeta.latest_run.run_hour}Z
-            </span>
-          </div>
-        </div>
-      )}
 
       {/* Loading Overlay */}
       {loading && (

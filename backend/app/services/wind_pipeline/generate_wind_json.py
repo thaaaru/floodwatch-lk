@@ -20,12 +20,13 @@ NOMADS_BASE = "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl"
 # Output directory for processed wind data
 WIND_DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "wind_data")
 
-# Sri Lanka bounding box (expanded for better visualization)
+# Sri Lanka + surrounding ocean (expanded for detecting approaching weather systems)
+# Covers Bay of Bengal, Arabian Sea, and Indian Ocean around Sri Lanka
 SRI_LANKA_BOUNDS = {
-    "lat_min": 4.0,
-    "lat_max": 12.0,
-    "lon_min": 78.0,
-    "lon_max": 84.0
+    "lat_min": -5.0,   # Extended south into Indian Ocean
+    "lat_max": 20.0,   # Extended north to cover Bay of Bengal / India
+    "lon_min": 68.0,   # Extended west into Arabian Sea
+    "lon_max": 95.0    # Extended east into Bay of Bengal
 }
 
 # Wider regional bounds (South Asia / Indian Ocean)
@@ -76,24 +77,40 @@ def download_gfs_wind_data(
 ) -> Optional[Dict]:
     """
     Download U and V wind components from NOAA NOMADS.
-    Uses the GFS 0.25 degree filter service.
-    Falls back to synthetic data if download fails.
+    Tries OPeNDAP first (no special libraries needed), then GRIB2, then synthetic.
     """
     if bounds is None:
         bounds = SRI_LANKA_BOUNDS
 
-    # Try to fetch real data
+    # Try OPeNDAP first (ASCII format, no special libs needed)
+    try:
+        from .opendap_fetcher import fetch_gfs_wind_opendap
+        logger.info(f"Trying OPeNDAP for {date_str}/{run_hour} f{forecast_hour:03d}")
+        real_data = fetch_gfs_wind_opendap(
+            date_str, run_hour, forecast_hour, bounds,
+            resolution=OUTPUT_RESOLUTION
+        )
+        if real_data:
+            logger.info("Successfully fetched wind data via OPeNDAP")
+            return real_data
+    except ImportError:
+        logger.info("OPeNDAP fetcher not available")
+    except Exception as e:
+        logger.warning(f"OPeNDAP fetch failed: {e}")
+
+    # Try GRIB2 method (requires cfgrib)
     try:
         from .gfs_fetcher import fetch_and_process_gfs
         real_data = fetch_and_process_gfs(date_str, run_hour, forecast_hour, bounds)
         if real_data:
             return process_raw_wind_data(real_data, bounds)
     except ImportError:
-        logger.info("GFS fetcher not available, using synthetic data")
+        logger.info("GFS GRIB2 fetcher not available")
     except Exception as e:
-        logger.warning(f"Failed to fetch real GFS data: {e}")
+        logger.warning(f"GRIB2 fetch failed: {e}")
 
-    # Generate synthetic but realistic wind data for demonstration
+    # Fallback to synthetic data
+    logger.info("Falling back to synthetic wind data")
     return generate_synthetic_wind_data(bounds, forecast_hour)
 
 
@@ -146,13 +163,15 @@ def generate_synthetic_wind_data(bounds: Dict, forecast_hour: int = 0) -> Dict:
     # Determine monsoon season (SW: May-Sep, NE: Nov-Feb)
     month = datetime.utcnow().month
     if 5 <= month <= 9:
-        # Southwest monsoon - winds from SW
+        # Southwest monsoon - winds FROM SW, blowing TO NE
+        # U positive = eastward, V positive = northward
         base_u = 5.0 + np.random.randn(*lon_grid.shape) * 2
-        base_v = -3.0 + np.random.randn(*lon_grid.shape) * 2
+        base_v = 3.0 + np.random.randn(*lon_grid.shape) * 2
     elif month >= 11 or month <= 2:
-        # Northeast monsoon - winds from NE
+        # Northeast monsoon - winds FROM NE, blowing TO SW
+        # U negative = westward, V negative = southward
         base_u = -4.0 + np.random.randn(*lon_grid.shape) * 2
-        base_v = 4.0 + np.random.randn(*lon_grid.shape) * 2
+        base_v = -4.0 + np.random.randn(*lon_grid.shape) * 2
     else:
         # Inter-monsoon - variable
         base_u = np.random.randn(*lon_grid.shape) * 3
