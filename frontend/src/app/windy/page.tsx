@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 
 type OverlayType =
   // Weather
-  | 'rain' | 'wind' | 'temp' | 'clouds' | 'gust' | 'pressure' | 'rh' | 'visibility'
+  | 'rain' | 'wind' | 'temp' | 'clouds' | 'rh'
   // Precipitation & Radar
   | 'thunder' | 'radar' | 'satellite'
   // Clouds & Atmosphere
@@ -28,10 +28,7 @@ const overlays: OverlayConfig[] = [
   { id: 'wind', label: 'Wind Speed', icon: '💨', category: 'Weather', description: 'Wind speed & direction' },
   { id: 'temp', label: 'Temperature', icon: '🌡️', category: 'Weather', description: 'Air temperature' },
   { id: 'clouds', label: 'Cloud Cover', icon: '☁️', category: 'Weather', description: 'Total cloud coverage' },
-  { id: 'gust', label: 'Wind Gusts', icon: '🌬️', category: 'Weather', description: 'Maximum wind gusts' },
-  { id: 'pressure', label: 'Pressure', icon: '📊', category: 'Weather', description: 'Sea level pressure' },
   { id: 'rh', label: 'Humidity', icon: '💧', category: 'Weather', description: 'Relative humidity' },
-  { id: 'visibility', label: 'Visibility', icon: '👁️', category: 'Weather', description: 'Horizontal visibility' },
 
   // Storms & Severe Weather
   { id: 'thunder', label: 'Lightning', icon: '⚡', category: 'Storms', description: 'Thunderstorm probability' },
