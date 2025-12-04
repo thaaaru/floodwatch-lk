@@ -69,6 +69,23 @@ export default function WindyPage() {
   // Get categories
   const categories = Array.from(new Set(overlays.map(o => o.category)));
 
+  // Prevent body scrolling and mobile bounce
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.width = '100%';
+    document.body.style.height = '100%';
+    document.documentElement.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.height = '';
+      document.documentElement.style.overflow = '';
+    };
+  }, []);
+
   // Get user location
   useEffect(() => {
     if (navigator.geolocation) {
@@ -95,9 +112,9 @@ export default function WindyPage() {
   const embedUrl = `https://embed.windy.com/embed2.html?lat=${lat}&lon=${lon}&detailLat=${lat}&detailLon=${lon}&zoom=${zoom}&level=surface&overlay=${activeOverlay}&product=ecmwf&menu=&message=true&marker=${marker}&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=km%2Fh&metricTemp=%C2%B0C&radarRange=-1`;
 
   return (
-    <div className="min-h-screen bg-slate-900 relative">
+    <div className="h-screen bg-slate-900 relative overflow-hidden" style={{ touchAction: 'none' }}>
       {/* Header */}
-      <div className="bg-slate-800 border-b border-slate-700 px-4 py-3">
+      <div className="bg-slate-800 border-b border-slate-700 px-4 py-3 flex-shrink-0" style={{ touchAction: 'auto' }}>
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <a href="/" className="text-slate-400 hover:text-white transition-colors">
@@ -135,12 +152,12 @@ export default function WindyPage() {
 
       {/* Floating Layer Panel */}
       {showPanel && (
-        <div className="absolute top-16 right-4 z-10 bg-slate-800/95 backdrop-blur-sm rounded-lg border border-slate-700 shadow-xl max-w-xs w-80">
+        <div className="absolute top-16 right-4 bottom-4 z-10 bg-slate-800/95 backdrop-blur-sm rounded-lg border border-slate-700 shadow-xl max-w-xs w-80 flex flex-col overflow-hidden" style={{ touchAction: 'auto' }}>
           {/* Header */}
-          <div className="px-3 py-2 border-b border-slate-700">
+          <div className="px-3 py-2 border-b border-slate-700 flex-shrink-0" style={{ touchAction: 'auto' }}>
             <div className="text-xs font-semibold text-white mb-2">Weather Layers</div>
             {/* Category Tabs */}
-            <div className="flex gap-1 overflow-x-auto pb-1">
+            <div className="flex gap-1 flex-wrap">
               {categories.map((category) => (
                 <button
                   key={category}
@@ -158,7 +175,7 @@ export default function WindyPage() {
           </div>
 
           {/* Layer List */}
-          <div className="max-h-96 overflow-y-auto p-2">
+          <div className="flex-1 overflow-y-auto p-2">
             <div className="flex flex-col gap-1">
               {overlays
                 .filter(o => o.category === activeCategory)
@@ -192,14 +209,14 @@ export default function WindyPage() {
           </div>
 
           {/* Footer Info */}
-          <div className="px-3 py-2 border-t border-slate-700 text-xs text-slate-400">
+          <div className="px-3 py-2 border-t border-slate-700 text-xs text-slate-400 flex-shrink-0">
             {overlays.filter(o => o.category === activeCategory).length} layers in {activeCategory}
           </div>
         </div>
       )}
 
       {/* Windy Embed - Full Height */}
-      <div className="w-full" style={{ height: 'calc(100vh - 56px)' }}>
+      <div className="w-full overflow-hidden" style={{ height: 'calc(100vh - 56px)', touchAction: 'auto' }}>
         <iframe
           key={activeOverlay}
           src={embedUrl}
@@ -208,6 +225,7 @@ export default function WindyPage() {
           frameBorder="0"
           allowFullScreen
           title="Windy Weather Map - Sri Lanka"
+          style={{ touchAction: 'auto' }}
         />
       </div>
     </div>
