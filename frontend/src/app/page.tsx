@@ -198,21 +198,21 @@ export default function Dashboard() {
         {/* Top Controls Overlay */}
         <div className="absolute top-6 left-6 right-6 z-[1000] flex flex-col gap-3">
           {/* Layer Selection */}
-          <div className="bg-white/10 backdrop-blur-md rounded-xl shadow-lg border border-white/30 p-3">
+          <div className="bg-white/30 backdrop-blur-xl rounded-xl shadow-lg border border-white/40 p-3">
             <div className="flex flex-wrap items-center gap-3">
               {/* Current Layers */}
               <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-slate-500 hidden sm:inline">Current</span>
+                <span className="text-xs font-bold text-slate-900 hidden sm:inline">Current</span>
                 <div className="flex flex-wrap gap-1">
                   {currentLayers.map((layer) => (
                     <button
                       key={layer.id}
                       onClick={() => setSelectedLayer(layer.id)}
                       title={layer.description}
-                      className={`px-2.5 py-1.5 text-xs font-medium rounded-lg transition-all flex items-center gap-1.5 ${
+                      className={`px-2.5 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
                         selectedLayer === layer.id
                           ? 'bg-brand-600 text-white shadow-sm'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          : 'bg-white/80 text-slate-900 hover:bg-white border border-slate-300'
                       }`}
                     >
                       <span>{layer.icon}</span>
@@ -227,16 +227,16 @@ export default function Dashboard() {
 
               {/* Time Period */}
               <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-slate-500 hidden sm:inline">Period</span>
-                <div className="flex rounded-lg overflow-hidden border border-slate-200">
+                <span className="text-xs font-bold text-slate-900 hidden sm:inline">Period</span>
+                <div className="flex rounded-lg overflow-hidden border border-slate-300">
                   {[24, 48, 72].map((hours) => (
                     <button
                       key={hours}
                       onClick={() => setSelectedHours(hours)}
-                      className={`px-2.5 py-1.5 text-xs font-semibold transition-all ${
+                      className={`px-2.5 py-1.5 text-xs font-bold transition-all ${
                         selectedHours === hours
                           ? 'bg-brand-600 text-white'
-                          : 'bg-white text-slate-600 hover:bg-slate-50'
+                          : 'bg-white text-slate-900 hover:bg-slate-100'
                       }`}
                     >
                       {hours}h
@@ -250,17 +250,17 @@ export default function Dashboard() {
 
               {/* Forecast Layers */}
               <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-slate-500 hidden md:inline">Forecast</span>
+                <span className="text-xs font-bold text-slate-900 hidden md:inline">Forecast</span>
                 <div className="flex flex-wrap gap-1">
                   {forecastLayers.map((layer) => (
                     <button
                       key={layer.id}
                       onClick={() => setSelectedLayer(layer.id)}
                       title={layer.description}
-                      className={`px-2.5 py-1.5 text-xs font-medium rounded-lg transition-all ${
+                      className={`px-2.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
                         selectedLayer === layer.id
                           ? 'bg-violet-600 text-white shadow-sm'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          : 'bg-white/80 text-slate-900 hover:bg-white border border-slate-300'
                       }`}
                     >
                       {layer.label}
@@ -272,8 +272,8 @@ export default function Dashboard() {
           </div>
 
           {/* Legend */}
-          <div className="bg-white/10 backdrop-blur-md rounded-xl shadow-lg border border-white/30 p-2.5 flex items-center gap-3 flex-wrap">
-            <span className="text-xs font-medium text-slate-600">
+          <div className="bg-white/30 backdrop-blur-xl rounded-xl shadow-lg border border-white/40 p-2.5 flex items-center gap-3 flex-wrap">
+            <span className="text-xs font-bold text-slate-900">
               {layerOptions.find(l => l.id === selectedLayer)?.label}
             </span>
             <div className="flex items-center gap-2 flex-wrap">
@@ -304,16 +304,25 @@ export default function Dashboard() {
                     disabled={selectedLayer !== 'danger'}
                   >
                     <span
-                      className="w-3 h-3 rounded-sm border border-slate-200"
+                      className="w-3 h-3 rounded-sm border border-slate-300"
                       style={{ backgroundColor: item.color }}
                     />
-                    <span className="text-slate-600">{item.label}</span>
+                    <span className="text-slate-900 font-medium">{item.label}</span>
                   </button>
                 );
               })}
             </div>
           </div>
         </div>
+
+        {/* Windy Icon - Mobile Only (Left Side) */}
+        <a
+          href="/windy"
+          className="lg:hidden fixed bottom-6 left-6 z-[2000] w-14 h-14 bg-purple-600 hover:bg-purple-700 text-white rounded-full shadow-2xl flex items-center justify-center transition-all active:scale-95 ring-4 ring-purple-300/40"
+          title="Windy Weather Map"
+        >
+          <span className="text-2xl">🌀</span>
+        </a>
 
         {/* Floating Info Panel - Both Desktop & Mobile */}
         <div>
