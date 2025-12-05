@@ -16,8 +16,8 @@ settings = get_settings()
 
 scheduler = AsyncIOScheduler()
 
-WEATHER_CACHE_INTERVAL_MINUTES = 30
-INTEL_ANALYSIS_INTERVAL_MINUTES = 15  # Reduced from 5 to minimize API load
+WEATHER_CACHE_INTERVAL_MINUTES = 60  # Refresh every 60 minutes to minimize API calls
+INTEL_ANALYSIS_INTERVAL_MINUTES = 30  # Reduced to minimize API load
 FACILITIES_REFRESH_INTERVAL_HOURS = 24  # Daily refresh for OSM facilities
 
 

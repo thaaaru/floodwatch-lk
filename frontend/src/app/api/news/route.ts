@@ -33,6 +33,7 @@ function markSourceFetched(source: string): void {
 let imdCache: { items: NewsItem[]; fetchedAt: number } | null = null;
 let gdacsCache: { items: NewsItem[]; fetchedAt: number } | null = null;
 let reliefwebCache: { items: NewsItem[]; fetchedAt: number } | null = null;
+let slMetCache: { items: NewsItem[]; fetchedAt: number } | null = null;
 
 /**
  * Fetch cyclone info from IMD RSMC
@@ -214,6 +215,156 @@ async function fetchReliefWebNews(): Promise<NewsItem[]> {
 }
 
 /**
+ * Fetch weather updates from Sri Lanka Met Department
+ * This is the primary source for local weather news
+ */
+async function fetchSLMetNews(): Promise<NewsItem[]> {
+  // Return cached data if we fetched recently
+  if (slMetCache && !canFetchSource('slmet')) {
+    return slMetCache.items;
+  }
+
+  const items: NewsItem[] = [];
+
+  try {
+    markSourceFetched('slmet');
+
+    const response = await fetch('https://www.meteo.gov.lk/content.json', {
+      signal: AbortSignal.timeout(10000),
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'FloodWatch.lk/1.0 (Weather Monitoring Service)'
+      }
+    });
+
+    if (!response.ok) {
+      return slMetCache?.items || items;
+    }
+
+    const data = await response.json();
+    const now = new Date();
+
+    // Extract English portion of public weather forecast
+    if (data.public_weather_forecast) {
+      const forecast = data.public_weather_forecast;
+      // Find the English section (starts with "WEATHER FORECAST FOR")
+      const englishMatch = forecast.match(/WEATHER FORECAST FOR[\s\S]+?(?=\r\n\r\n\d{4}|$)/i);
+      if (englishMatch) {
+        const englishForecast = englishMatch[0].trim();
+        // Extract date from forecast
+        const dateMatch = englishForecast.match(/(\d{1,2})\s+(DECEMBER|JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER)\s+(\d{4})/i);
+        const issuedMatch = englishForecast.match(/Issued at ([\d.:]+\s*[ap]\.?m\.?)/i);
+
+        // Check for heavy rain warnings
+        const hasHeavyRain = /fairly heavy|heavy falls|75\s*mm|100\s*mm/i.test(englishForecast);
+        const hasThunderstorms = /thundershower|thunder/i.test(englishForecast);
+
+        items.push({
+          id: `slmet-forecast-${now.toISOString().split('T')[0]}`,
+          title: `Weather Forecast for ${dateMatch ? `${dateMatch[1]} ${dateMatch[2]} ${dateMatch[3]}` : 'Today'}`,
+          summary: englishForecast.split('\n').slice(2, 5).join(' ').substring(0, 250) + '...',
+          source: 'SL Met',
+          sourceIcon: '🇱🇰',
+          url: 'https://www.meteo.gov.lk',
+          publishedAt: now.toISOString(),
+          category: 'weather',
+          severity: hasHeavyRain ? 'warning' : 'info',
+        });
+      }
+    }
+
+    // Check fleet/shipping forecast for cyclone info
+    if (data.fleet_shipping_forecast) {
+      const shippingForecast = data.fleet_shipping_forecast;
+      // Look for cyclone/depression mentions
+      const cycloneMatch = shippingForecast.match(/(Cyclonic Storm|Cyclone|Depression|Low[- ]?pressure area)[^.]+\./gi);
+      if (cycloneMatch) {
+        const cycloneInfo = cycloneMatch[0];
+        // Extract cyclone name if present
+        const nameMatch = cycloneInfo.match(/"([^"]+)"/);
+
+        items.push({
+          id: `slmet-cyclone-${now.toISOString().split('T')[0]}`,
+          title: nameMatch ? `Cyclonic Storm "${nameMatch[1]}" Update` : 'Cyclone/Depression Advisory',
+          summary: cycloneInfo.substring(0, 300),
+          source: 'SL Met',
+          sourceIcon: '🌀',
+          url: 'https://www.meteo.gov.lk',
+          publishedAt: now.toISOString(),
+          category: 'cyclone',
+          severity: /cyclonic storm|severe/i.test(cycloneInfo) ? 'critical' : 'warning',
+        });
+      }
+    }
+
+    // Check for sea weather warnings
+    if (data.sea_weather_forecast) {
+      const seaForecast = data.sea_weather_forecast;
+      const englishSeaMatch = seaForecast.match(/WEATHER FORECAST FOR SEA AREAS[\s\S]+?(?=\r\n\r\n[^\x00-\x7F]|$)/i);
+      if (englishSeaMatch) {
+        const seaEnglish = englishSeaMatch[0].trim();
+        const isRough = /rough|strong winds|gale/i.test(seaEnglish);
+
+        if (isRough) {
+          items.push({
+            id: `slmet-sea-${now.toISOString().split('T')[0]}`,
+            title: 'Sea Weather Advisory',
+            summary: seaEnglish.split('\n').slice(2, 4).join(' ').substring(0, 200) + '...',
+            source: 'SL Met',
+            sourceIcon: '🌊',
+            url: 'https://www.meteo.gov.lk',
+            publishedAt: new Date(now.getTime() - 60 * 60 * 1000).toISOString(), // 1 hour ago
+            category: 'weather',
+            severity: 'warning',
+          });
+        }
+      }
+    }
+
+    // Check for severe weather advisories
+    if (data.severe_weather_advisory) {
+      const { tsunami_pdf, land_pdf, sea_pdf, heat_pdf } = data.severe_weather_advisory;
+
+      if (tsunami_pdf) {
+        items.push({
+          id: `slmet-tsunami-advisory`,
+          title: 'Tsunami Advisory Active',
+          summary: 'A tsunami advisory has been issued by the Department of Meteorology.',
+          source: 'SL Met',
+          sourceIcon: '🌊',
+          url: `https://www.meteo.gov.lk/${tsunami_pdf}`,
+          publishedAt: now.toISOString(),
+          category: 'alert',
+          severity: 'critical',
+        });
+      }
+
+      if (land_pdf) {
+        items.push({
+          id: `slmet-land-advisory`,
+          title: 'Severe Weather Advisory - Land',
+          summary: 'A severe weather advisory for land areas has been issued.',
+          source: 'SL Met',
+          sourceIcon: '⚠️',
+          url: `https://www.meteo.gov.lk/${land_pdf}`,
+          publishedAt: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString(),
+          category: 'alert',
+          severity: 'warning',
+        });
+      }
+    }
+
+    // Update source cache
+    slMetCache = { items, fetchedAt: Date.now() };
+  } catch (error) {
+    console.warn('SL Met fetch error:', error);
+    return slMetCache?.items || items;
+  }
+
+  return items;
+}
+
+/**
  * Generate mock/fallback news
  */
 function getMockNews(): NewsItem[] {
@@ -275,14 +426,16 @@ export async function GET() {
     }
 
     // Fetch from all sources in parallel
-    const [imdNews, gdacsNews, reliefwebNews] = await Promise.all([
+    // SL Met is the primary source for local weather news
+    const [slMetNews, imdNews, gdacsNews, reliefwebNews] = await Promise.all([
+      fetchSLMetNews(),
       fetchIMDCycloneNews(),
       fetchGDACSAlerts(),
       fetchReliefWebNews(),
     ]);
 
-    // Combine all news
-    let allNews = [...imdNews, ...gdacsNews, ...reliefwebNews];
+    // Combine all news - SL Met first as primary source
+    let allNews = [...slMetNews, ...imdNews, ...gdacsNews, ...reliefwebNews];
 
     // Add mock/supplementary news if we don't have many items
     if (allNews.length < 3) {

@@ -13,7 +13,7 @@ Variables:
 
 Grid indices:
 - Time: forecast hours index (0, 1, 2, ... for f000, f003, f006, etc.)
-- Lat: 0-720 (90N to 90S, 0.25 degree steps) - index = (90 - lat) / 0.25
+- Lat: 0-720 (90S to 90N, 0.25 degree steps) - index = (lat + 90) / 0.25
 - Lon: 0-1439 (0E to 359.75E, 0.25 degree steps) - index = lon / 0.25
 """
 import re
@@ -33,8 +33,8 @@ DOWNLOAD_TIMEOUT = 120.0
 
 
 def lat_to_index(lat: float) -> int:
-    """Convert latitude to DODS grid index. North to South: 90 to -90."""
-    return int((90.0 - lat) / 0.25)
+    """Convert latitude to DODS grid index. South to North: -90 to 90."""
+    return int((lat + 90.0) / 0.25)
 
 
 def lon_to_index(lon: float) -> int:
@@ -46,7 +46,7 @@ def lon_to_index(lon: float) -> int:
 
 def index_to_lat(idx: int) -> float:
     """Convert DODS grid index to latitude."""
-    return 90.0 - idx * 0.25
+    return -90.0 + idx * 0.25
 
 
 def index_to_lon(idx: int) -> float:
@@ -173,8 +173,9 @@ def fetch_wind_component(
     Returns (data_array, lat_list, lon_list) or None on failure.
     """
     # Convert bounds to grid indices
-    lat_idx_start = lat_to_index(lat_max)  # Note: lat indices go N to S
-    lat_idx_end = lat_to_index(lat_min)
+    # Note: lat indices go S to N (index 0 = -90, index 720 = +90)
+    lat_idx_start = lat_to_index(lat_min)
+    lat_idx_end = lat_to_index(lat_max)
     lon_idx_start = lon_to_index(lon_min)
     lon_idx_end = lon_to_index(lon_max)
 

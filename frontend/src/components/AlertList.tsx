@@ -117,9 +117,9 @@ export default function AlertList({ alerts, title = 'Active Alerts', showDistric
                   {showDistrict && (
                     <h3 className="font-medium text-slate-900 text-sm">{alert.district}</h3>
                   )}
-                  {alert.rainfall_mm !== null && (
+                  {alert.rainfall_mm != null && (
                     <p className="text-xs text-slate-500 mt-0.5">
-                      {alert.rainfall_mm.toFixed(1)}mm rainfall
+                      {Number(alert.rainfall_mm).toFixed(1)}mm rainfall
                     </p>
                   )}
                 </div>

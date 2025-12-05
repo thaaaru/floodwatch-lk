@@ -241,5 +241,5 @@
 
 /* Map overlay controls */
 .map-control {
-  @apply bg-white/95 backdrop-blur-sm rounded-xl shadow-soft border border-slate-200/60;
+  @apply bg-white/10 backdrop-blur-md rounded-xl shadow-soft border border-white/30;
 }

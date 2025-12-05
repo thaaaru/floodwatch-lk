@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@tremor/react": "^3.18.7",
     "@types/leaflet": "^1.9.8",
     "date-fns": "^3.2.0",
     "leaflet": "^1.9.4",
@@ -17,7 +18,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-leaflet": "^4.2.1",
-    "recharts": "^2.10.3"
+    "recharts": "^2.15.4"
   },
   "devDependencies": {
     "@types/google.maps": "^3.58.1",

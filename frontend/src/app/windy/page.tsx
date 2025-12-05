@@ -10,9 +10,7 @@ type OverlayType =
   // Clouds & Atmosphere
   | 'cBase' | 'lclouds' | 'mclouds' | 'hclouds' | 'cape'
   // Marine/Ocean
-  | 'waves' | 'swell1' | 'swell2' | 'swell3' | 'wwaves' | 'currents'
-  // Air Quality
-  | 'pm2p5' | 'no2' | 'co' | 'aod550';
+  | 'waves' | 'swell1' | 'swell2' | 'swell3' | 'wwaves' | 'currents';
 
 interface OverlayConfig {
   id: OverlayType;
@@ -49,12 +47,6 @@ const overlays: OverlayConfig[] = [
   { id: 'swell3', label: 'Tertiary Swell', icon: '🌊', category: 'Marine', description: 'Tertiary swell waves' },
   { id: 'wwaves', label: 'Wind Waves', icon: '🌊', category: 'Marine', description: 'Wind-generated waves' },
   { id: 'currents', label: 'Ocean Currents', icon: '🌊', category: 'Marine', description: 'Sea surface currents' },
-
-  // Air Quality
-  { id: 'pm2p5', label: 'PM2.5', icon: '😷', category: 'Air Quality', description: 'Fine particulate matter' },
-  { id: 'no2', label: 'NO₂', icon: '🏭', category: 'Air Quality', description: 'Nitrogen dioxide' },
-  { id: 'co', label: 'CO', icon: '🏭', category: 'Air Quality', description: 'Carbon monoxide' },
-  { id: 'aod550', label: 'Aerosols', icon: '🌫️', category: 'Air Quality', description: 'Aerosol optical depth' },
 ];
 
 export default function WindyPage() {
@@ -92,31 +84,29 @@ export default function WindyPage() {
   return (
     <div className="h-screen bg-slate-900 relative overflow-hidden" style={{ touchAction: 'none' }}>
       {/* Header */}
-      <div className="bg-slate-800 border-b border-slate-700 px-4 py-3 flex-shrink-0" style={{ touchAction: 'auto' }}>
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <a href="/" className="text-slate-400 hover:text-white transition-colors">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="absolute top-0 left-0 right-0 z-20 bg-slate-800/10 backdrop-blur-md border-b border-slate-700/50 px-3 py-1.5 flex-shrink-0" style={{ touchAction: 'auto' }}>
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 flex-nowrap min-w-0">
+            <a href="/" className="text-slate-400 hover:text-white transition-colors flex-shrink-0">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
             </a>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-semibold text-white">Sri Lanka Weather Map</h1>
-              <span className="text-slate-400">•</span>
-              <span className="text-sm text-blue-400 flex items-center gap-1">
-                {overlays.find(o => o.id === activeOverlay)?.icon}
-                <span>{overlays.find(o => o.id === activeOverlay)?.label}</span>
-              </span>
-            </div>
+            <h1 className="text-sm font-semibold text-white whitespace-nowrap flex-shrink-0">FloodWatch Sri Lanka</h1>
+            <span className="text-slate-400 flex-shrink-0 hidden sm:inline">•</span>
+            <span className="text-xs text-blue-400 flex items-center gap-1 flex-shrink-0 hidden sm:flex">
+              {overlays.find(o => o.id === activeOverlay)?.icon}
+              <span className="whitespace-nowrap">{overlays.find(o => o.id === activeOverlay)?.label}</span>
+            </span>
           </div>
           <button
             onClick={() => setShowPanel(!showPanel)}
-            className="text-sm text-slate-400 hover:text-white transition-colors flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-slate-700"
+            className="text-xs text-slate-400 hover:text-white transition-colors flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-slate-700/50 flex-shrink-0"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
-            <span>Layers</span>
+            <span className="hidden sm:inline">Layers</span>
             <span className="text-xs text-slate-500">({overlays.length})</span>
           </button>
         </div>
@@ -124,7 +114,7 @@ export default function WindyPage() {
 
       {/* Floating Layer Panel */}
       {showPanel && (
-        <div className="absolute top-16 right-4 bottom-4 z-10 bg-slate-800/95 backdrop-blur-sm rounded-lg border border-slate-700 shadow-xl max-w-xs w-80 flex flex-col overflow-hidden" style={{ touchAction: 'auto' }}>
+        <div className="absolute top-12 right-4 z-10 bg-slate-800/10 backdrop-blur-md rounded-lg border border-slate-700/50 shadow-xl max-w-xs w-80 max-h-[60vh] flex flex-col overflow-hidden" style={{ touchAction: 'auto' }}>
           {/* Header */}
           <div className="px-3 py-2 border-b border-slate-700 flex-shrink-0" style={{ touchAction: 'auto' }}>
             <div className="text-xs font-semibold text-white mb-2">Weather Layers</div>
@@ -188,7 +178,7 @@ export default function WindyPage() {
       )}
 
       {/* Windy Embed - Full Height */}
-      <div className="w-full overflow-hidden" style={{ height: 'calc(100vh - 56px)', touchAction: 'auto' }}>
+      <div className="w-full h-screen overflow-hidden" style={{ touchAction: 'auto' }}>
         <iframe
           key={activeOverlay}
           src={embedUrl}

@@ -19,8 +19,8 @@ export default function LastUpdated() {
     };
 
     fetchStatus();
-    // Refresh every 5 minutes
-    const interval = setInterval(fetchStatus, 300000);
+    // Refresh every 30 minutes to match backend cache duration
+    const interval = setInterval(fetchStatus, 1800000);
     return () => clearInterval(interval);
   }, []);
 

@@ -3,6 +3,12 @@
 import { useEffect, useState, useCallback } from 'react';
 import { api, IntelSummary, SOSReport, IntelCluster, IntelAction, NearbyFacilitiesResponse, FloodThreatResponse, IrrigationResponse, TrafficFlowResponse, TrafficIncident, AllFacilitiesResponse, FloodPatternsResponse, EnvironmentalDataResponse, YesterdayStats } from '@/lib/api';
 
+// Safe number formatting helper to prevent toFixed errors on undefined/null values
+const fmt = (v: any, d: number = 0): string => {
+  if (v === null || v === undefined || isNaN(Number(v))) return '0';
+  return Number(v).toFixed(d);
+};
+
 export default function IntelDashboard() {
   const [summary, setSummary] = useState<IntelSummary | null>(null);
   const [priorities, setPriorities] = useState<SOSReport[]>([]);
@@ -16,7 +22,7 @@ export default function IntelDashboard() {
   const [expandedReport, setExpandedReport] = useState<number | null>(null);
   const [nearbyFacilities, setNearbyFacilities] = useState<NearbyFacilitiesResponse | null>(null);
   const [loadingFacilities, setLoadingFacilities] = useState(false);
-  const [activeTab, setActiveTab] = useState<'threat' | 'rescue' | 'infrastructure'>('threat');
+  const [activeTab, setActiveTab] = useState<'threat' | 'infrastructure'>('threat');
   const [trafficFlow, setTrafficFlow] = useState<TrafficFlowResponse | null>(null);
   const [trafficIncidents, setTrafficIncidents] = useState<TrafficIncident[]>([]);
   const [allFacilities, setAllFacilities] = useState<AllFacilitiesResponse | null>(null);
@@ -321,16 +327,6 @@ export default function IntelDashboard() {
           >
             Flood Threat Intel
           </button>
-          <button
-            onClick={() => setActiveTab('rescue')}
-            className={`px-5 py-2.5 rounded-xl font-medium text-sm transition-all ${
-              activeTab === 'rescue'
-                ? 'bg-red-600 text-white shadow-sm'
-                : 'bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700'
-            }`}
-          >
-            Rescue Operations
-          </button>
           {/* Infrastructure Intel tab - hidden for now
           <button
             onClick={() => setActiveTab('infrastructure')}
@@ -358,7 +354,7 @@ export default function IntelDashboard() {
                       <div className="text-3xl font-bold">{floodThreat.national_threat_level}</div>
                     </div>
                     <div>
-                      <div className="text-5xl font-bold text-white">{floodThreat.national_threat_score.toFixed(0)}<span className="text-2xl text-gray-400">/100</span></div>
+                      <div className="text-5xl font-bold text-white">{fmt(floodThreat.national_threat_score)}<span className="text-2xl text-gray-400">/100</span></div>
                       <div className="text-sm text-gray-400">Composite Threat Score</div>
                     </div>
                   </div>
@@ -402,7 +398,7 @@ export default function IntelDashboard() {
                           {riverData.stations.filter(s => s.status === 'major_flood').map((s, i) => (
                             <div key={i} className="flex justify-between text-red-300">
                               <span>{s.station}</span>
-                              <span className="font-mono">{s.water_level_m.toFixed(2)}m / {s.major_flood_level_m.toFixed(2)}m</span>
+                              <span className="font-mono">{fmt(s.water_level_m, 2)}m / {fmt(s.major_flood_level_m, 2)}m</span>
                             </div>
                           ))}
                         </div>
@@ -423,7 +419,7 @@ export default function IntelDashboard() {
                           {riverData.stations.filter(s => s.status === 'minor_flood').map((s, i) => (
                             <div key={i} className="flex justify-between text-orange-300">
                               <span>{s.station}</span>
-                              <span className="font-mono">{s.water_level_m.toFixed(2)}m / {s.major_flood_level_m.toFixed(2)}m</span>
+                              <span className="font-mono">{fmt(s.water_level_m, 2)}m / {fmt(s.major_flood_level_m, 2)}m</span>
                             </div>
                           ))}
                         </div>
@@ -444,7 +440,7 @@ export default function IntelDashboard() {
                           {riverData.stations.filter(s => s.status === 'alert').map((s, i) => (
                             <div key={i} className="flex justify-between text-yellow-300">
                               <span>{s.station}</span>
-                              <span className="font-mono">{s.water_level_m.toFixed(2)}m / {s.major_flood_level_m.toFixed(2)}m</span>
+                              <span className="font-mono">{fmt(s.water_level_m, 2)}m / {fmt(s.major_flood_level_m, 2)}m</span>
                             </div>
                           ))}
                         </div>
@@ -467,7 +463,7 @@ export default function IntelDashboard() {
                           {riverData.stations.filter(s => s.status === 'normal' && s.pct_to_major_flood >= 40).map((s, i) => (
                             <div key={i} className="flex justify-between text-blue-300">
                               <span>{s.station}</span>
-                              <span className="font-mono">{s.water_level_m.toFixed(2)}m / {s.major_flood_level_m.toFixed(2)}m</span>
+                              <span className="font-mono">{fmt(s.water_level_m, 2)}m / {fmt(s.major_flood_level_m, 2)}m</span>
                             </div>
                           ))}
                         </div>
@@ -490,7 +486,7 @@ export default function IntelDashboard() {
                           {riverData.stations.filter(s => s.status === 'normal' && s.pct_to_major_flood < 40).map((s, i) => (
                             <div key={i} className="flex justify-between text-green-300">
                               <span>{s.station}</span>
-                              <span className="font-mono">{s.water_level_m.toFixed(2)}m / {s.major_flood_level_m.toFixed(2)}m</span>
+                              <span className="font-mono">{fmt(s.water_level_m, 2)}m / {fmt(s.major_flood_level_m, 2)}m</span>
                             </div>
                           ))}
                         </div>
@@ -558,8 +554,8 @@ export default function IntelDashboard() {
                                         }`}>
                                           <span className="font-medium">{s.station}</span>
                                           <span className="font-mono text-right">
-                                            {s.water_level_m.toFixed(2)}m / {s.major_flood_level_m.toFixed(2)}m
-                                            <span className="text-gray-500 ml-1">({s.pct_to_major_flood.toFixed(0)}%)</span>
+                                            {fmt(s.water_level_m, 2)}m / {fmt(s.major_flood_level_m, 2)}m
+                                            <span className="text-gray-500 ml-1">({fmt(s.pct_to_major_flood)}%)</span>
                                           </span>
                                         </div>
                                       ))}
@@ -595,7 +591,7 @@ export default function IntelDashboard() {
                                         style={{ width: `${Math.min(row.highestPct, 100)}%` }}
                                       ></div>
                                     </div>
-                                    <span className="font-mono text-xs">{row.highestPct.toFixed(0)}%</span>
+                                    <span className="font-mono text-xs">{fmt(row.highestPct)}%</span>
                                   </div>
                                 </td>
                                 <td className="text-center py-2">
@@ -642,7 +638,7 @@ export default function IntelDashboard() {
                                   style={{ width: `${d.threat_score}%` }}
                                 ></div>
                               </div>
-                              <span className="font-mono font-bold">{d.threat_score.toFixed(0)}</span>
+                              <span className="font-mono font-bold">{fmt(d.threat_score)}</span>
                             </div>
                           </td>
                           <td className="text-center py-2">
@@ -650,9 +646,9 @@ export default function IntelDashboard() {
                               {d.threat_level}
                             </span>
                           </td>
-                          <td className="text-center py-2 font-mono text-blue-400">{d.rainfall_score.toFixed(0)}</td>
-                          <td className="text-center py-2 font-mono text-cyan-400">{d.river_score.toFixed(0)}</td>
-                          <td className="text-center py-2 font-mono text-purple-400">{d.forecast_score.toFixed(0)}</td>
+                          <td className="text-center py-2 font-mono text-blue-400">{fmt(d.rainfall_score)}</td>
+                          <td className="text-center py-2 font-mono text-cyan-400">{fmt(d.river_score)}</td>
+                          <td className="text-center py-2 font-mono text-purple-400">{fmt(d.forecast_score)}</td>
                           <td className="py-2 text-xs text-gray-400">
                             {d.factors.slice(0, 2).map((f, i) => (
                               <div key={i}>{f.value}</div>
@@ -678,11 +674,11 @@ export default function IntelDashboard() {
                   {/* Summary Stats with Gauge Charts */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <div className="bg-blue-900/50 border border-blue-700 rounded-lg p-3 text-center">
-                      <div className="text-2xl font-bold text-blue-400">{floodPatterns.summary.avg_annual_rainfall_mm.toFixed(0)}</div>
+                      <div className="text-2xl font-bold text-blue-400">{fmt(floodPatterns.summary.avg_annual_rainfall_mm)}</div>
                       <div className="text-xs text-blue-300">Avg Annual Rainfall (mm)</div>
                     </div>
                     <div className="bg-orange-900/50 border border-orange-700 rounded-lg p-3 text-center">
-                      <div className="text-2xl font-bold text-orange-400">{floodPatterns.summary.max_daily_rainfall_mm.toFixed(0)}</div>
+                      <div className="text-2xl font-bold text-orange-400">{fmt(floodPatterns.summary.max_daily_rainfall_mm)}</div>
                       <div className="text-xs text-orange-300">Max Daily Rainfall (mm)</div>
                     </div>
                     <div className="bg-cyan-900/50 border border-cyan-700 rounded-lg p-3 text-center">
@@ -726,7 +722,7 @@ export default function IntelDashboard() {
                             <div className="mt-2 space-y-1 text-xs">
                               <div className="flex justify-between">
                                 <span className="text-gray-400">Avg Rainfall</span>
-                                <span className="text-blue-300">{floodPatterns.climate_change.decades.first.avg_annual_rainfall_mm.toFixed(0)} mm/yr</span>
+                                <span className="text-blue-300">{fmt(floodPatterns.climate_change.decades.first.avg_annual_rainfall_mm)} mm/yr</span>
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-gray-400">Extreme Days</span>
@@ -734,7 +730,7 @@ export default function IntelDashboard() {
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-gray-400">Max Daily</span>
-                                <span className="text-orange-300">{floodPatterns.climate_change.decades.first.max_daily_mm.toFixed(0)} mm</span>
+                                <span className="text-orange-300">{fmt(floodPatterns.climate_change.decades.first.max_daily_mm)} mm</span>
                               </div>
                             </div>
                           </div>
@@ -746,7 +742,7 @@ export default function IntelDashboard() {
                             <div className="mt-2 space-y-1 text-xs">
                               <div className="flex justify-between">
                                 <span className="text-gray-400">Avg Rainfall</span>
-                                <span className="text-blue-300">{floodPatterns.climate_change.decades.second.avg_annual_rainfall_mm.toFixed(0)} mm/yr</span>
+                                <span className="text-blue-300">{fmt(floodPatterns.climate_change.decades.second.avg_annual_rainfall_mm)} mm/yr</span>
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-gray-400">Extreme Days</span>
@@ -754,7 +750,7 @@ export default function IntelDashboard() {
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-gray-400">Max Daily</span>
-                                <span className="text-orange-300">{floodPatterns.climate_change.decades.second.max_daily_mm.toFixed(0)} mm</span>
+                                <span className="text-orange-300">{fmt(floodPatterns.climate_change.decades.second.max_daily_mm)} mm</span>
                               </div>
                             </div>
                           </div>
@@ -766,7 +762,7 @@ export default function IntelDashboard() {
                             <div className="mt-2 space-y-1 text-xs">
                               <div className="flex justify-between">
                                 <span className="text-gray-400">Avg Rainfall</span>
-                                <span className="text-blue-300">{floodPatterns.climate_change.decades.third.avg_annual_rainfall_mm.toFixed(0)} mm/yr</span>
+                                <span className="text-blue-300">{fmt(floodPatterns.climate_change.decades.third.avg_annual_rainfall_mm)} mm/yr</span>
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-gray-400">Extreme Days</span>
@@ -774,7 +770,7 @@ export default function IntelDashboard() {
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-gray-400">Max Daily</span>
-                                <span className="text-orange-300">{floodPatterns.climate_change.decades.third.max_daily_mm.toFixed(0)} mm</span>
+                                <span className="text-orange-300">{fmt(floodPatterns.climate_change.decades.third.max_daily_mm)} mm</span>
                               </div>
                             </div>
                           </div>
@@ -812,7 +808,7 @@ export default function IntelDashboard() {
                                   change.trend === 'increasing' ? 'text-red-400' :
                                   change.trend === 'decreasing' ? 'text-green-400' : 'text-gray-400'
                                 }`}>
-                                  {change.change_pct > 0 ? '+' : ''}{change.change_pct.toFixed(1)}%
+                                  {change.change_pct > 0 ? '+' : ''}{fmt(change.change_pct, 1)}%
                                 </div>
                               </div>
                             ))}
@@ -850,10 +846,10 @@ export default function IntelDashboard() {
                             const d1 = floodPatterns.climate_change!.extreme_events_by_decade.decade1.count;
                             const d3 = floodPatterns.climate_change!.extreme_events_by_decade.decade3.count;
                             if (d3 > d1) {
-                              const increase = ((d3 - d1) / d1 * 100).toFixed(0);
+                              const increase = fmt((d3 - d1) / d1 * 100);
                               return `${increase}% increase in extreme events from first to last decade`;
                             } else if (d3 < d1) {
-                              const decrease = ((d1 - d3) / d1 * 100).toFixed(0);
+                              const decrease = fmt((d1 - d3) / d1 * 100);
                               return `${decrease}% decrease in extreme events from first to last decade`;
                             }
                             return 'Extreme events remained stable across decades';
@@ -877,7 +873,7 @@ export default function IntelDashboard() {
                                   key={ma.year}
                                   className={`flex-1 ${isRecent ? 'bg-purple-500' : 'bg-blue-600'} rounded-t min-w-[3px] transition-all hover:opacity-80`}
                                   style={{ height: `${heightPct}%` }}
-                                  title={`${ma.year}: ${ma.avg_rainfall_mm.toFixed(0)}mm (5yr avg)`}
+                                  title={`${ma.year}: ${fmt(ma.avg_rainfall_mm)}mm (5yr avg)`}
                                 />
                               );
                             })}
@@ -985,11 +981,11 @@ export default function IntelDashboard() {
                         const riskColor = m.flood_risk === 'HIGH' ? 'bg-red-500' : m.flood_risk === 'MEDIUM' ? 'bg-yellow-500' : 'bg-green-500';
                         return (
                           <div key={m.month} className="flex-1 flex flex-col items-center">
-                            <div className="text-xs text-gray-400 mb-1">{m.avg_rainfall_mm.toFixed(0)}</div>
+                            <div className="text-xs text-gray-400 mb-1">{fmt(m.avg_rainfall_mm)}</div>
                             <div
                               className={`w-full ${riskColor} rounded-t transition-all hover:opacity-80`}
                               style={{ height: `${heightPct}%`, minHeight: '4px' }}
-                              title={`${m.month_name}: ${m.avg_rainfall_mm.toFixed(0)}mm avg, ${m.max_daily_mm.toFixed(0)}mm max`}
+                              title={`${m.month_name}: ${fmt(m.avg_rainfall_mm)}mm avg, ${fmt(m.max_daily_mm)}mm max`}
                             />
                             <div className="text-xs text-gray-400 mt-1">{m.month_name.substring(0, 3)}</div>
                             <div className={`text-xs font-bold mt-1 ${m.flood_risk === 'HIGH' ? 'text-red-400' : m.flood_risk === 'MEDIUM' ? 'text-yellow-400' : 'text-green-400'}`}>
@@ -1035,11 +1031,11 @@ export default function IntelDashboard() {
                                 <div className="grid grid-cols-2 gap-2 text-xs">
                                   <div>
                                     <div className="text-white/60">Avg Daily</div>
-                                    <div className="font-bold text-white">{season.avg_daily_mm.toFixed(1)}mm</div>
+                                    <div className="font-bold text-white">{fmt(season.avg_daily_mm, 1)}mm</div>
                                   </div>
                                   <div>
                                     <div className="text-white/60">Max Day</div>
-                                    <div className="font-bold text-white">{season.max_daily_mm.toFixed(0)}mm</div>
+                                    <div className="font-bold text-white">{fmt(season.max_daily_mm)}mm</div>
                                   </div>
                                   <div>
                                     <div className="text-white/60">Heavy Days</div>
@@ -1086,7 +1082,7 @@ export default function IntelDashboard() {
                                 }}
                               ></div>
                               <div className="absolute inset-0 flex items-end justify-center pb-1">
-                                <span className="text-lg font-bold text-white">{extremePerYear.toFixed(1)}</span>
+                                <span className="text-lg font-bold text-white">{fmt(extremePerYear, 1)}</span>
                               </div>
                             </div>
                             <div className="text-xs text-gray-400 mt-2">Extreme Events/Year</div>
@@ -1110,7 +1106,7 @@ export default function IntelDashboard() {
                                 }}
                               ></div>
                               <div className="absolute inset-0 flex items-end justify-center pb-1">
-                                <span className="text-lg font-bold text-white">{heavyPerYear.toFixed(1)}</span>
+                                <span className="text-lg font-bold text-white">{fmt(heavyPerYear, 1)}</span>
                               </div>
                             </div>
                             <div className="text-xs text-gray-400 mt-2">Heavy Rain Days/Year</div>
@@ -1134,7 +1130,7 @@ export default function IntelDashboard() {
                                 }}
                               ></div>
                               <div className="absolute inset-0 flex items-end justify-center pb-1">
-                                <span className="text-lg font-bold text-white">{maxDaily.toFixed(0)}</span>
+                                <span className="text-lg font-bold text-white">{fmt(maxDaily)}</span>
                               </div>
                             </div>
                             <div className="text-xs text-gray-400 mt-2">Max Daily (mm)</div>
@@ -1198,9 +1194,9 @@ export default function IntelDashboard() {
                               />
                             </div>
                             <div className="w-24 text-xs text-gray-400 text-right">
-                              <span className="text-white">{m.avg_rainfall_mm.toFixed(0)}</span>
+                              <span className="text-white">{fmt(m.avg_rainfall_mm)}</span>
                               <span className="text-gray-500"> / </span>
-                              <span className="text-orange-400">{m.max_daily_mm.toFixed(0)}</span>
+                              <span className="text-orange-400">{fmt(m.max_daily_mm)}</span>
                             </div>
                           </div>
                         );
@@ -1222,7 +1218,7 @@ export default function IntelDashboard() {
                         <div className="flex justify-between items-center mb-2">
                           <span className="text-xs text-gray-400">Annual Rainfall</span>
                           <span className="text-sm font-bold text-blue-400">
-                            {floodPatterns.yearly_trends[floodPatterns.yearly_trends.length - 1]?.total_rainfall_mm.toFixed(0) || 0}mm
+                            {fmt(floodPatterns.yearly_trends[floodPatterns.yearly_trends.length - 1]?.total_rainfall_mm)}mm
                           </span>
                         </div>
                         <div className="flex items-end gap-px h-12">
@@ -1234,7 +1230,7 @@ export default function IntelDashboard() {
                                 key={y.year}
                                 className="flex-1 bg-blue-500 rounded-t min-w-[2px]"
                                 style={{ height: `${heightPct}%` }}
-                                title={`${y.year}: ${y.total_rainfall_mm.toFixed(0)}mm`}
+                                title={`${y.year}: ${fmt(y.total_rainfall_mm)}mm`}
                               />
                             );
                           })}
@@ -1276,7 +1272,7 @@ export default function IntelDashboard() {
                         <div className="flex justify-between items-center mb-2">
                           <span className="text-xs text-gray-400">Max Daily/Year</span>
                           <span className="text-sm font-bold text-orange-400">
-                            {floodPatterns.yearly_trends[floodPatterns.yearly_trends.length - 1]?.max_daily_mm.toFixed(0) || 0}mm
+                            {fmt(floodPatterns.yearly_trends[floodPatterns.yearly_trends.length - 1]?.max_daily_mm)}mm
                           </span>
                         </div>
                         <div className="flex items-end gap-px h-12">
@@ -1288,7 +1284,7 @@ export default function IntelDashboard() {
                                 key={y.year}
                                 className="flex-1 bg-orange-500 rounded-t min-w-[2px]"
                                 style={{ height: `${heightPct}%` }}
-                                title={`${y.year}: ${y.max_daily_mm.toFixed(0)}mm max`}
+                                title={`${y.year}: ${fmt(y.max_daily_mm)}mm max`}
                               />
                             );
                           })}
@@ -1364,11 +1360,11 @@ export default function IntelDashboard() {
                           <div className="space-y-2 text-sm">
                             <div className="flex justify-between">
                               <span className="text-gray-400">Avg Daily Rain</span>
-                              <span className="font-mono text-blue-400">{season.avg_daily_mm.toFixed(1)} mm</span>
+                              <span className="font-mono text-blue-400">{fmt(season.avg_daily_mm, 1)} mm</span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-gray-400">Max Single Day</span>
-                              <span className="font-mono text-orange-400">{season.max_daily_mm.toFixed(1)} mm</span>
+                              <span className="font-mono text-orange-400">{fmt(season.max_daily_mm, 1)} mm</span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-gray-400">Heavy Rain Days</span>
@@ -1398,12 +1394,12 @@ export default function IntelDashboard() {
                         return (
                           <div key={year.year} className="flex-1 min-w-[12px] flex flex-col items-center">
                             <div className="text-xs text-gray-500 mb-1 transform -rotate-45 origin-bottom-left whitespace-nowrap hidden md:block">
-                              {(year.total_rainfall_mm / 1000).toFixed(1)}k
+                              {fmt(year.total_rainfall_mm / 1000, 1)}k
                             </div>
                             <div
                               className={`w-full ${isAboveAvg ? 'bg-blue-500' : 'bg-blue-700'} rounded-t transition-all hover:opacity-80`}
                               style={{ height: `${heightPct}%`, minHeight: '4px' }}
-                              title={`${year.year}: ${year.total_rainfall_mm.toFixed(0)}mm total, ${year.extreme_days} extreme days`}
+                              title={`${year.year}: ${fmt(year.total_rainfall_mm)}mm total, ${year.extreme_days} extreme days`}
                             />
                             <div className="text-xs text-gray-400 mt-1">{year.year.toString().slice(-2)}</div>
                           </div>
@@ -1411,7 +1407,7 @@ export default function IntelDashboard() {
                       })}
                     </div>
                     <div className="flex justify-center items-center gap-2 mt-2 text-xs text-gray-500">
-                      <span>Avg: {(floodPatterns.summary.avg_annual_rainfall_mm / 1000).toFixed(1)}k mm/year</span>
+                      <span>Avg: {fmt(floodPatterns.summary.avg_annual_rainfall_mm / 1000, 1)}k mm/year</span>
                       <span className="text-gray-600">|</span>
                       <div className="flex items-center gap-1"><div className="w-3 h-3 bg-blue-500 rounded" /> Above avg</div>
                       <div className="flex items-center gap-1"><div className="w-3 h-3 bg-blue-700 rounded" /> Below avg</div>
@@ -1438,7 +1434,7 @@ export default function IntelDashboard() {
                               <td className="py-2 text-gray-500">{idx + 1}</td>
                               <td className="py-2">{event.date}</td>
                               <td className="text-center py-2">
-                                <span className="font-mono font-bold text-red-400">{event.precipitation_mm.toFixed(1)}</span>
+                                <span className="font-mono font-bold text-red-400">{fmt(event.precipitation_mm, 1)}</span>
                               </td>
                               <td className="text-center py-2 text-gray-400">
                                 {['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][event.month]}
@@ -1490,15 +1486,15 @@ export default function IntelDashboard() {
                   {/* Date & Summary Stats */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <div className="bg-blue-900/50 border border-blue-700 rounded-lg p-3 text-center">
-                      <div className="text-2xl font-bold text-blue-400">{yesterdayStats.total_rainfall_mm.toFixed(0)}</div>
+                      <div className="text-2xl font-bold text-blue-400">{fmt(yesterdayStats.total_rainfall_mm)}</div>
                       <div className="text-xs text-blue-300">Total Rainfall (mm)</div>
                     </div>
                     <div className="bg-cyan-900/50 border border-cyan-700 rounded-lg p-3 text-center">
-                      <div className="text-2xl font-bold text-cyan-400">{yesterdayStats.avg_rainfall_mm.toFixed(1)}</div>
+                      <div className="text-2xl font-bold text-cyan-400">{fmt(yesterdayStats.avg_rainfall_mm, 1)}</div>
                       <div className="text-xs text-cyan-300">Avg per District (mm)</div>
                     </div>
                     <div className="bg-orange-900/50 border border-orange-700 rounded-lg p-3 text-center">
-                      <div className="text-2xl font-bold text-orange-400">{yesterdayStats.max_rainfall_mm.toFixed(0)}</div>
+                      <div className="text-2xl font-bold text-orange-400">{fmt(yesterdayStats.max_rainfall_mm)}</div>
                       <div className="text-xs text-orange-300">Max Rainfall (mm)</div>
                     </div>
                     <div className="bg-green-900/50 border border-green-700 rounded-lg p-3 text-center">
@@ -1607,7 +1603,7 @@ export default function IntelDashboard() {
                           <div className="text-lg font-bold text-white">{yesterdayStats.max_rainfall_district}</div>
                         </div>
                         <div className="text-right">
-                          <div className="text-3xl font-bold text-orange-400">{yesterdayStats.max_rainfall_mm.toFixed(0)}</div>
+                          <div className="text-3xl font-bold text-orange-400">{fmt(yesterdayStats.max_rainfall_mm)}</div>
                           <div className="text-xs text-orange-300">mm</div>
                         </div>
                       </div>
@@ -1662,7 +1658,7 @@ export default function IntelDashboard() {
                       </div>
                       <div className="text-right">
                         <div className="text-2xl font-bold text-white">
-                          {environmentalData.flood_risk_factors.risk_score.toFixed(0)}/{environmentalData.flood_risk_factors.max_score}
+                          {fmt(environmentalData.flood_risk_factors.risk_score)}/{environmentalData.flood_risk_factors.max_score}
                         </div>
                         <div className="text-xs text-gray-400">Risk Score</div>
                       </div>
@@ -1687,16 +1683,16 @@ export default function IntelDashboard() {
                         <span className={`text-2xl font-bold ${
                           environmentalData.forest_cover.analysis.trend === 'decreasing' ? 'text-red-400' : 'text-green-400'
                         }`}>
-                          {environmentalData.forest_cover.analysis.last_value.toFixed(1)}%
+                          {fmt(environmentalData.forest_cover.analysis.last_value, 1)}%
                         </span>
                         <span className={`text-sm ${
                           environmentalData.forest_cover.analysis.percent_change < 0 ? 'text-red-400' : 'text-green-400'
                         }`}>
-                          ({environmentalData.forest_cover.analysis.percent_change > 0 ? '+' : ''}{environmentalData.forest_cover.analysis.percent_change.toFixed(1)}%)
+                          ({environmentalData.forest_cover.analysis.percent_change > 0 ? '+' : ''}{fmt(environmentalData.forest_cover.analysis.percent_change, 1)}%)
                         </span>
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
-                        From {environmentalData.forest_cover.analysis.first_value.toFixed(1)}% in {environmentalData.forest_cover.analysis.first_year}
+                        From {fmt(environmentalData.forest_cover.analysis.first_value, 1)}% in {environmentalData.forest_cover.analysis.first_year}
                       </div>
                       {/* Mini sparkline */}
                       <div className="flex items-end gap-px h-8 mt-2">
@@ -1709,7 +1705,7 @@ export default function IntelDashboard() {
                               key={i}
                               className="flex-1 bg-green-600 rounded-t min-w-[2px]"
                               style={{ height: `${Math.max(heightPct, 10)}%` }}
-                              title={`${d.year}: ${d.value.toFixed(1)}%`}
+                              title={`${d.year}: ${fmt(d.value, 1)}%`}
                             />
                           );
                         })}
@@ -1724,14 +1720,14 @@ export default function IntelDashboard() {
                       </div>
                       <div className="flex items-baseline gap-2">
                         <span className="text-2xl font-bold text-orange-400">
-                          {environmentalData.population_density.analysis.last_value.toFixed(0)}
+                          {fmt(environmentalData.population_density.analysis.last_value)}
                         </span>
                         <span className="text-sm text-gray-400">per km²</span>
                       </div>
                       <div className={`text-sm ${
                         environmentalData.population_density.analysis.percent_change > 10 ? 'text-red-400' : 'text-yellow-400'
                       }`}>
-                        +{environmentalData.population_density.analysis.percent_change.toFixed(1)}% since {environmentalData.population_density.analysis.first_year}
+                        +{fmt(environmentalData.population_density.analysis.percent_change, 1)}% since {environmentalData.population_density.analysis.first_year}
                       </div>
                       {/* Mini sparkline */}
                       <div className="flex items-end gap-px h-8 mt-2">
@@ -1744,7 +1740,7 @@ export default function IntelDashboard() {
                               key={i}
                               className="flex-1 bg-orange-500 rounded-t min-w-[2px]"
                               style={{ height: `${Math.max(heightPct, 10)}%` }}
-                              title={`${d.year}: ${d.value.toFixed(0)} per km²`}
+                              title={`${d.year}: ${fmt(d.value)} per km²`}
                             />
                           );
                         })}
@@ -1759,11 +1755,11 @@ export default function IntelDashboard() {
                       </div>
                       <div className="flex items-baseline gap-2">
                         <span className="text-2xl font-bold text-purple-400">
-                          {environmentalData.urban_population.analysis.last_value.toFixed(1)}%
+                          {fmt(environmentalData.urban_population.analysis.last_value, 1)}%
                         </span>
                       </div>
                       <div className="text-sm text-purple-300">
-                        +{(environmentalData.urban_population.analysis.last_value - environmentalData.urban_population.analysis.first_value).toFixed(1)}% since {environmentalData.urban_population.analysis.first_year}
+                        +{fmt(environmentalData.urban_population.analysis.last_value - environmentalData.urban_population.analysis.first_value, 1)}% since {environmentalData.urban_population.analysis.first_year}
                       </div>
                       {/* Mini sparkline */}
                       <div className="flex items-end gap-px h-8 mt-2">
@@ -1776,7 +1772,7 @@ export default function IntelDashboard() {
                               key={i}
                               className="flex-1 bg-purple-500 rounded-t min-w-[2px]"
                               style={{ height: `${Math.max(heightPct, 10)}%` }}
-                              title={`${d.year}: ${d.value.toFixed(1)}%`}
+                              title={`${d.year}: ${fmt(d.value, 1)}%`}
                             />
                           );
                         })}
@@ -1791,13 +1787,13 @@ export default function IntelDashboard() {
                       </div>
                       <div className="flex items-baseline gap-2">
                         <span className="text-2xl font-bold text-yellow-400">
-                          {environmentalData.agricultural_land.analysis.last_value.toFixed(1)}%
+                          {fmt(environmentalData.agricultural_land.analysis.last_value, 1)}%
                         </span>
                       </div>
                       <div className={`text-sm ${
                         environmentalData.agricultural_land.analysis.percent_change < 0 ? 'text-red-400' : 'text-green-400'
                       }`}>
-                        {environmentalData.agricultural_land.analysis.percent_change > 0 ? '+' : ''}{environmentalData.agricultural_land.analysis.percent_change.toFixed(1)}% since {environmentalData.agricultural_land.analysis.first_year}
+                        {environmentalData.agricultural_land.analysis.percent_change > 0 ? '+' : ''}{fmt(environmentalData.agricultural_land.analysis.percent_change, 1)}% since {environmentalData.agricultural_land.analysis.first_year}
                       </div>
                       {/* Mini sparkline */}
                       <div className="flex items-end gap-px h-8 mt-2">
@@ -1810,7 +1806,7 @@ export default function IntelDashboard() {
                               key={i}
                               className="flex-1 bg-yellow-500 rounded-t min-w-[2px]"
                               style={{ height: `${Math.max(heightPct, 10)}%` }}
-                              title={`${d.year}: ${d.value.toFixed(1)}%`}
+                              title={`${d.year}: ${fmt(d.value, 1)}%`}
                             />
                           );
                         })}
@@ -1849,7 +1845,7 @@ export default function IntelDashboard() {
                                   />
                                 </div>
                                 <span className="text-xs text-gray-400 w-12 text-right">
-                                  +{factor.risk_contribution.toFixed(0)} pts
+                                  +{fmt(factor.risk_contribution)} pts
                                 </span>
                               </div>
                             </div>
@@ -1921,416 +1917,6 @@ export default function IntelDashboard() {
           </>
         )}
 
-        {/* RESCUE OPERATIONS TAB */}
-        {activeTab === 'rescue' && (
-          <>
-            {/* Emergency Contacts Bar */}
-            <div className="bg-red-900 rounded-lg p-4 border border-red-700">
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-red-300 font-semibold">Emergency Hotlines:</span>
-                  <a href="tel:117" className="bg-red-700 hover:bg-red-600 text-white px-3 py-1 rounded font-bold">117 Emergency</a>
-                  <a href="tel:119" className="bg-blue-700 hover:bg-blue-600 text-white px-3 py-1 rounded font-bold">119 Police</a>
-                  <a href="tel:110" className="bg-orange-700 hover:bg-orange-600 text-white px-3 py-1 rounded font-bold">110 Fire</a>
-                  <a href="tel:108" className="bg-green-700 hover:bg-green-600 text-white px-3 py-1 rounded font-bold">108 Ambulance</a>
-                </div>
-                <div className="flex items-center gap-2">
-                  <a
-                    href="https://floodsupport.org/emergency-contacts"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm"
-                  >
-                    District Contacts
-                  </a>
-                  <a
-                    href="https://floodsupport.org/flood-map"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="bg-blue-800 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"
-                  >
-                    Live Flood Map
-                  </a>
-                  <a
-                    href="https://floodsupport.org"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded text-sm font-semibold"
-                  >
-                    Report Emergency
-                  </a>
-                </div>
-              </div>
-            </div>
-
-            {/* Summary Cards */}
-        {summary && (
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            <div className="bg-gray-800 rounded-lg p-4 border-l-4 border-red-500">
-              <div className="text-3xl font-bold">{summary.total_reports}</div>
-              <div className="text-sm text-gray-400">Total Reports</div>
-            </div>
-            <div className="bg-gray-800 rounded-lg p-4 border-l-4 border-orange-500">
-              <div className="text-3xl font-bold">{summary.total_people_affected}</div>
-              <div className="text-sm text-gray-400">People Affected</div>
-            </div>
-            <div className="bg-gray-800 rounded-lg p-4 border-l-4 border-red-600">
-              <div className="text-3xl font-bold text-red-500">{summary.urgency_breakdown.critical}</div>
-              <div className="text-sm text-gray-400">CRITICAL</div>
-            </div>
-            <div className="bg-gray-800 rounded-lg p-4 border-l-4 border-orange-600">
-              <div className="text-3xl font-bold text-orange-500">{summary.urgency_breakdown.high}</div>
-              <div className="text-sm text-gray-400">HIGH</div>
-            </div>
-            <div className="bg-gray-800 rounded-lg p-4 border-l-4 border-blue-500">
-              <div className="text-3xl font-bold">{summary.resource_needs.needs_water}</div>
-              <div className="text-sm text-gray-400">Need Water</div>
-            </div>
-            <div className="bg-gray-800 rounded-lg p-4 border-l-4 border-purple-500">
-              <div className="text-3xl font-bold">{summary.resource_needs.medical_emergencies}</div>
-              <div className="text-sm text-gray-400">Medical Emergency</div>
-            </div>
-          </div>
-        )}
-
-        {/* Recommended Actions */}
-        {actions.length > 0 && (
-          <div className="bg-gray-800 rounded-lg p-4">
-            <h2 className="text-lg font-semibold mb-4 text-red-400">Recommended Actions</h2>
-            <div className="space-y-3">
-              {actions.map((action, idx) => (
-                <div key={idx} className="bg-gray-700 rounded-lg p-4 border-l-4 border-red-500">
-                  <div className="flex items-start gap-3">
-                    <div className="bg-red-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold flex-shrink-0">
-                      {action.priority}
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-semibold text-white">{action.action.replace(/_/g, ' ')}</div>
-                      <div className="text-sm text-gray-300 mt-1">{action.description}</div>
-                      {action.targets.length > 0 && (
-                        <div className="mt-2 text-xs text-gray-400">
-                          {action.targets.slice(0, 3).map((t, i) => (
-                            <span key={i} className="inline-block bg-gray-600 rounded px-2 py-1 mr-2 mb-1">
-                              {String(t.location || t.district || t.name || `Target ${i + 1}`)}
-                            </span>
-                          ))}
-                          {action.targets.length > 3 && (
-                            <span className="text-gray-500">+{action.targets.length - 3} more</span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Most Affected Districts */}
-        {summary && summary.most_affected_districts.length > 0 && (
-          <div className="bg-gray-800 rounded-lg p-4">
-            <h2 className="text-lg font-semibold mb-4">Most Affected Districts</h2>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-gray-400 border-b border-gray-700">
-                    <th className="text-left py-2">District</th>
-                    <th className="text-center py-2">Reports</th>
-                    <th className="text-center py-2">People</th>
-                    <th className="text-center py-2">Critical</th>
-                    <th className="text-center py-2">High</th>
-                    <th className="text-center py-2">Need Water</th>
-                    <th className="text-center py-2">Medical</th>
-                    <th className="text-center py-2">Rain 24h</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {summary.most_affected_districts.slice(0, 10).map((d, idx) => (
-                    <tr key={idx} className="border-b border-gray-700 hover:bg-gray-700">
-                      <td className="py-2 font-medium">{d.district}</td>
-                      <td className="text-center py-2">{d.count}</td>
-                      <td className="text-center py-2">{d.total_people}</td>
-                      <td className="text-center py-2">
-                        <span className={d.critical > 0 ? 'text-red-500 font-bold' : ''}>{d.critical}</span>
-                      </td>
-                      <td className="text-center py-2">
-                        <span className={d.high > 0 ? 'text-orange-500 font-bold' : ''}>{d.high}</span>
-                      </td>
-                      <td className="text-center py-2">{d.needs_water}</td>
-                      <td className="text-center py-2">{d.has_medical}</td>
-                      <td className="text-center py-2">
-                        <span className={d.forecast_rain_24h > 50 ? 'text-blue-400' : ''}>
-                          {d.forecast_rain_24h?.toFixed(0) || 0}mm
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* Clusters */}
-        {clusters.length > 0 && (
-          <div className="bg-gray-800 rounded-lg p-4">
-            <h2 className="text-lg font-semibold mb-4">Emergency Clusters</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {clusters.slice(0, 6).map((cluster, idx) => (
-                <div key={idx} className="bg-gray-700 rounded-lg p-4">
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="font-semibold">{cluster.name}</div>
-                    <div className="text-xs bg-gray-600 rounded px-2 py-1">
-                      Avg: {cluster.avg_urgency.toFixed(0)}
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div><span className="text-gray-400">Reports:</span> {cluster.report_count}</div>
-                    <div><span className="text-gray-400">People:</span> {cluster.total_people}</div>
-                    <div><span className="text-red-400">Critical:</span> {cluster.critical_count}</div>
-                    <div><span className="text-orange-400">High:</span> {cluster.high_count}</div>
-                  </div>
-                  <div className="mt-2 flex gap-2 text-xs">
-                    {cluster.vulnerabilities.medical_emergency && <span className="bg-red-600 px-2 py-1 rounded">Medical</span>}
-                    {cluster.vulnerabilities.elderly && <span className="bg-purple-600 px-2 py-1 rounded">Elderly</span>}
-                    {cluster.vulnerabilities.children && <span className="bg-blue-600 px-2 py-1 rounded">Children</span>}
-                    {cluster.vulnerabilities.disabled && <span className="bg-yellow-600 text-black px-2 py-1 rounded">Disabled</span>}
-                  </div>
-                  {cluster.top_reports && cluster.top_reports.length > 0 && (
-                    <div className="mt-3 pt-2 border-t border-gray-600">
-                      <div className="text-xs text-gray-400 mb-1">Top reports:</div>
-                      <div className="flex flex-wrap gap-1">
-                        {cluster.top_reports.slice(0, 3).map((report) => (
-                          <span
-                            key={report.id}
-                            className="text-xs bg-gray-600 px-2 py-1 rounded"
-                            title={report.reference || `ID: ${report.id}`}
-                          >
-                            {report.address?.substring(0, 20) || `#${report.id}`}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Priority Filter */}
-        <div className="flex gap-2 items-center">
-          <span className="text-sm text-gray-400">Filter by urgency:</span>
-          {['', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].map((tier) => (
-            <button
-              key={tier}
-              onClick={() => setFilterUrgency(tier)}
-              className={`px-3 py-1 rounded text-sm ${
-                filterUrgency === tier
-                  ? 'bg-red-600 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
-            >
-              {tier || 'All'}
-            </button>
-          ))}
-        </div>
-
-        {/* Priority List */}
-        <div className="bg-gray-800 rounded-lg p-4">
-          <h2 className="text-lg font-semibold mb-4">Priority-Ranked Emergencies ({priorities.length})</h2>
-          <p className="text-xs text-gray-500 mb-3">Click on a report to see nearby emergency facilities</p>
-          <div className="space-y-3 max-h-[800px] overflow-y-auto">
-            {priorities.map((report, idx) => (
-              <div key={report.id}>
-                <div
-                  className={`bg-gray-700 rounded-lg p-4 border-l-4 cursor-pointer hover:bg-gray-650 transition-colors ${expandedReport === report.id ? 'ring-2 ring-blue-500' : ''}`}
-                  style={{
-                    borderLeftColor: report.urgency_tier === 'CRITICAL' ? '#dc2626' :
-                                     report.urgency_tier === 'HIGH' ? '#f97316' :
-                                     report.urgency_tier === 'MEDIUM' ? '#eab308' : '#22c55e'
-                  }}
-                  onClick={() => handleExpandReport(report)}
-                >
-                  <div className="flex flex-wrap items-start gap-3">
-                    {/* Rank */}
-                    <div className="text-2xl font-bold text-gray-500 w-8">#{idx + 1}</div>
-
-                    {/* Score Badge */}
-                    <div className={`px-3 py-1 rounded-full text-sm font-bold ${getUrgencyColor(report.urgency_tier)}`}>
-                      {report.urgency_score}
-                    </div>
-
-                    {/* Water Level */}
-                    <div className="text-xl" title={`Water Level: ${report.water_level}`}>
-                      {getWaterLevelIcon(report.water_level)}
-                    </div>
-
-                    {/* Main Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="font-semibold truncate">
-                        {report.address || report.landmark || 'No address'}
-                      </div>
-                      <div className="text-sm text-gray-400">
-                        {report.district} | {report.number_of_people} people
-                        {report.safe_for_hours !== null && ` | Safe: ${report.safe_for_hours}hrs`}
-                      </div>
-                      {report.description && (
-                        <div className="text-xs text-gray-500 mt-1 line-clamp-2">{report.description}</div>
-                      )}
-                    </div>
-
-                    {/* Vulnerability Tags */}
-                    <div className="flex flex-wrap gap-1">
-                      {report.has_medical_emergency && <span className="bg-red-600 text-xs px-2 py-1 rounded">Medical</span>}
-                      {report.has_elderly && <span className="bg-purple-600 text-xs px-2 py-1 rounded">Elderly</span>}
-                      {report.has_children && <span className="bg-blue-600 text-xs px-2 py-1 rounded">Children</span>}
-                      {report.has_disabled && <span className="bg-yellow-600 text-black text-xs px-2 py-1 rounded">Disabled</span>}
-                      {!report.has_water && <span className="bg-cyan-600 text-xs px-2 py-1 rounded">No Water</span>}
-                      {!report.has_food && <span className="bg-orange-700 text-xs px-2 py-1 rounded">No Food</span>}
-                      {report.elevation_m !== null && report.elevation_m !== undefined && (
-                        <span
-                          className={`text-xs px-2 py-1 rounded ${
-                            report.elevation_risk_level === 'CRITICAL' ? 'bg-red-800' :
-                            report.elevation_risk_level === 'HIGH' ? 'bg-orange-800' :
-                            report.elevation_risk_level === 'MEDIUM' ? 'bg-yellow-800' :
-                            'bg-gray-600'
-                          }`}
-                          title={`Elevation: ${report.elevation_m}m - ${report.elevation_risk_level} flood risk`}
-                        >
-                          {report.elevation_m}m
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Contact & Links */}
-                    <div className="flex gap-2 items-center" onClick={(e) => e.stopPropagation()}>
-                      {report.phone && (
-                        <a href={`tel:${report.phone}`} className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700">
-                          Call
-                        </a>
-                      )}
-                      {report.reference && (
-                        <span className="text-xs text-gray-500 bg-gray-700 px-2 py-1 rounded">
-                          {report.reference}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Expanded Panel - Nearby Facilities */}
-                {expandedReport === report.id && (
-                  <div className="bg-gray-800 border border-gray-600 rounded-b-lg p-4 -mt-1 ml-4">
-                    <h3 className="text-sm font-semibold mb-3 text-blue-400">Nearby Emergency Facilities (within 15km)</h3>
-
-                    {!report.latitude || !report.longitude ? (
-                      <p className="text-sm text-gray-500">No GPS coordinates available for this report</p>
-                    ) : loadingFacilities ? (
-                      <div className="flex items-center gap-2 text-gray-400">
-                        <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
-                        <span className="text-sm">Loading nearby facilities...</span>
-                      </div>
-                    ) : nearbyFacilities && nearbyFacilities.total_found > 0 ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                        {/* Hospitals */}
-                        {nearbyFacilities.hospitals.length > 0 && (
-                          <div className="bg-gray-700 rounded p-3">
-                            <div className="text-sm font-semibold mb-2 text-red-400">{getFacilityIcon('hospitals')} Hospitals</div>
-                            <div className="space-y-2">
-                              {nearbyFacilities.hospitals.map((h) => (
-                                <div key={h.id} className="text-xs">
-                                  <div className="font-medium">{h.name}</div>
-                                  <div className="text-gray-400">{h.distance_km}km away</div>
-                                  {h.phone && (
-                                    <a href={`tel:${h.phone}`} className="text-green-400 hover:underline">{h.phone}</a>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Police */}
-                        {nearbyFacilities.police.length > 0 && (
-                          <div className="bg-gray-700 rounded p-3">
-                            <div className="text-sm font-semibold mb-2 text-blue-400">{getFacilityIcon('police')} Police</div>
-                            <div className="space-y-2">
-                              {nearbyFacilities.police.map((p) => (
-                                <div key={p.id} className="text-xs">
-                                  <div className="font-medium">{p.name}</div>
-                                  <div className="text-gray-400">{p.distance_km}km away</div>
-                                  {p.phone && (
-                                    <a href={`tel:${p.phone}`} className="text-green-400 hover:underline">{p.phone}</a>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Fire Stations */}
-                        {nearbyFacilities.fire_stations.length > 0 && (
-                          <div className="bg-gray-700 rounded p-3">
-                            <div className="text-sm font-semibold mb-2 text-orange-400">{getFacilityIcon('fire_stations')} Fire Stations</div>
-                            <div className="space-y-2">
-                              {nearbyFacilities.fire_stations.map((f) => (
-                                <div key={f.id} className="text-xs">
-                                  <div className="font-medium">{f.name}</div>
-                                  <div className="text-gray-400">{f.distance_km}km away</div>
-                                  {f.phone && (
-                                    <a href={`tel:${f.phone}`} className="text-green-400 hover:underline">{f.phone}</a>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Shelters */}
-                        {nearbyFacilities.shelters.length > 0 && (
-                          <div className="bg-gray-700 rounded p-3">
-                            <div className="text-sm font-semibold mb-2 text-green-400">{getFacilityIcon('shelters')} Shelters</div>
-                            <div className="space-y-2">
-                              {nearbyFacilities.shelters.map((s) => (
-                                <div key={s.id} className="text-xs">
-                                  <div className="font-medium">{s.name}</div>
-                                  <div className="text-gray-400">{s.distance_km}km away</div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ) : nearbyFacilities ? (
-                      <p className="text-sm text-gray-500">No facilities found within 15km radius</p>
-                    ) : null}
-
-                    {/* Coordinates display */}
-                    {report.latitude && report.longitude && (
-                      <div className="mt-3 pt-2 border-t border-gray-600 text-xs text-gray-500">
-                        GPS: {report.latitude.toFixed(4)}, {report.longitude.toFixed(4)}
-                        <a
-                          href={`https://www.google.com/maps?q=${report.latitude},${report.longitude}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="ml-3 text-blue-400 hover:underline"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          Open in Google Maps
-                        </a>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-          </>
-        )}
-
         {/* INFRASTRUCTURE INTEL TAB */}
         {activeTab === 'infrastructure' && (
           <>
@@ -2365,7 +1951,7 @@ export default function IntelDashboard() {
                     <div className="text-xs text-red-300">Severe</div>
                   </div>
                   <div className="bg-gray-700 rounded-lg p-3 text-center">
-                    <div className="text-2xl font-bold text-white">{(trafficFlow.combined_summary?.avg_speed_kmh ?? 0).toFixed(0)}</div>
+                    <div className="text-2xl font-bold text-white">{fmt(trafficFlow.combined_summary?.avg_speed_kmh ?? 0)}</div>
                     <div className="text-xs text-gray-400">Avg km/h</div>
                   </div>
                 </div>
@@ -2394,10 +1980,10 @@ export default function IntelDashboard() {
                                   {road.congestion.toUpperCase()}
                                 </span>
                               </td>
-                              <td className="text-center py-2 font-mono text-red-400">{road.current_speed_kmh.toFixed(0)} km/h</td>
-                              <td className="text-center py-2 font-mono text-gray-500">{road.free_flow_speed_kmh.toFixed(0)} km/h</td>
+                              <td className="text-center py-2 font-mono text-red-400">{fmt(road.current_speed_kmh)} km/h</td>
+                              <td className="text-center py-2 font-mono text-gray-500">{fmt(road.free_flow_speed_kmh)} km/h</td>
                               <td className="text-center py-2 font-mono text-orange-400">
-                                {road.delay_minutes ? `+${road.delay_minutes.toFixed(0)} min` : '-'}
+                                {road.delay_minutes ? `+${fmt(road.delay_minutes)} min` : '-'}
                               </td>
                             </tr>
                           ))}
@@ -2478,7 +2064,7 @@ export default function IntelDashboard() {
                             <span className="text-orange-400">Delay: {incident.delay_minutes} min</span>
                           )}
                           {incident.length_km > 0 && (
-                            <span>Length: {incident.length_km.toFixed(1)} km</span>
+                            <span>Length: {fmt(incident.length_km, 1)} km</span>
                           )}
                         </div>
                       </div>
@@ -2648,13 +2234,13 @@ export default function IntelDashboard() {
                     <div className="flex justify-between items-center">
                       <span className="text-gray-400">Average Network Speed</span>
                       <span className="font-bold text-white">
-                        {trafficFlow?.combined_summary?.avg_speed_kmh?.toFixed(0) ?? '-'} km/h
+                        {trafficFlow?.combined_summary?.avg_speed_kmh != null ? fmt(trafficFlow.combined_summary.avg_speed_kmh) : '-'} km/h
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-gray-400">Total Delay (monitored roads)</span>
                       <span className={`font-bold ${(trafficFlow?.tomtom_summary?.total_delay_minutes || 0) > 30 ? 'text-orange-500' : 'text-green-500'}`}>
-                        {trafficFlow?.tomtom_summary?.total_delay_minutes?.toFixed(0) ?? 0} min
+                        {fmt(trafficFlow?.tomtom_summary?.total_delay_minutes ?? 0)} min
                       </span>
                     </div>
                   </div>

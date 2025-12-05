@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { api, Alert } from '@/lib/api';
 import AlertList from '@/components/AlertList';
 import NewsFeed from '@/components/NewsFeed';
+import RiverNetworkStatus from '@/components/RiverNetworkStatus';
 import { MapLayer } from '@/components/Map';
 
 const Map = dynamic(() => import('@/components/Map'), {
@@ -106,6 +107,7 @@ export default function Dashboard() {
   const [dangerFilter, setDangerFilter] = useState<DangerFilter>('all');
   const [rainSummary, setRainSummary] = useState<RainSummary | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
+  const [showMobilePanel, setShowMobilePanel] = useState(false);
 
   useEffect(() => {
     const fetchAlerts = async () => {
@@ -178,51 +180,10 @@ export default function Dashboard() {
 
   return (
     <div className="h-[calc(100vh-64px)] flex flex-col bg-slate-50">
-      {/* New Feature Announcement Banner */}
-      <a
-        href="/windy"
-        className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-4 py-2 flex items-center justify-center gap-3 text-sm hover:from-purple-700 hover:to-indigo-700 transition-all cursor-pointer"
-      >
-        <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs font-bold">NEW</span>
-        <span className="font-medium">Windy Weather Map - Real-time wind, rain & cloud visualization</span>
-        <span className="text-purple-200">Click to explore →</span>
-      </a>
-
-      {/* Rain Alert Banner */}
-      {rainSummary && rainSummary.districtsWithRain > 0 && (
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-2 flex items-center justify-center gap-4 text-sm">
-          <div className="flex items-center gap-2">
-            <span className="text-lg">🌧️</span>
-            <span className="font-medium">
-              Rain detected in {rainSummary.districtsWithRain} locations
-            </span>
-          </div>
-          <span className="text-blue-200">|</span>
-          <div className="flex items-center gap-1">
-            <span className="text-blue-200">Highest:</span>
-            <span className="font-bold">{Number(rainSummary.maxRainfall || 0).toFixed(1)}mm</span>
-            <span className="text-blue-200">in</span>
-            <span className="font-medium">{rainSummary.maxRainfallDistrict}</span>
-          </div>
-          <span className="text-blue-200">|</span>
-          <div className="flex items-center gap-1">
-            <span className="text-blue-200">Last {selectedHours}h</span>
-          </div>
-        </div>
-      )}
-
-      {/* No Rain Banner */}
-      {rainSummary && rainSummary.districtsWithRain === 0 && (
-        <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white px-4 py-2 flex items-center justify-center gap-2 text-sm">
-          <span className="text-lg">☀️</span>
-          <span className="font-medium">No rainfall recorded across Sri Lanka in the last {selectedHours} hours</span>
-        </div>
-      )}
-
       {/* Map Controls - Floating on top of map */}
       <div className="flex-1 relative">
-        {/* Map */}
-        <div className="absolute inset-0 p-4 pb-4 lg:pr-88">
+        {/* Map - Full Screen */}
+        <div className="absolute inset-0 p-4">
           <div className="h-full card overflow-hidden">
             <Map
               onDistrictSelect={setSelectedDistrict}
@@ -235,9 +196,9 @@ export default function Dashboard() {
         </div>
 
         {/* Top Controls Overlay */}
-        <div className="absolute top-6 left-6 right-6 lg:right-[calc(22rem+1.5rem)] z-[1000] flex flex-col gap-3">
+        <div className="absolute top-6 left-6 right-6 z-[1000] flex flex-col gap-3">
           {/* Layer Selection */}
-          <div className="map-control p-3">
+          <div className="bg-white/10 backdrop-blur-md rounded-xl shadow-lg border border-white/30 p-3">
             <div className="flex flex-wrap items-center gap-3">
               {/* Current Layers */}
               <div className="flex items-center gap-2">
@@ -311,7 +272,7 @@ export default function Dashboard() {
           </div>
 
           {/* Legend */}
-          <div className="map-control p-2.5 flex items-center gap-3 flex-wrap">
+          <div className="bg-white/10 backdrop-blur-md rounded-xl shadow-lg border border-white/30 p-2.5 flex items-center gap-3 flex-wrap">
             <span className="text-xs font-medium text-slate-600">
               {layerOptions.find(l => l.id === selectedLayer)?.label}
             </span>
@@ -354,97 +315,117 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Sidebar - Desktop */}
-        <div className="hidden lg:block absolute top-4 right-4 bottom-4 w-80">
-          <div className="h-full flex flex-col gap-3">
-            {/* News Section - Flexible height based on alerts */}
-            <div className={`card overflow-hidden flex flex-col ${alerts.length === 0 ? 'flex-1' : 'min-h-[200px]'}`} style={alerts.length > 0 ? { flex: '0 0 auto', maxHeight: '50%' } : undefined}>
-              <div className="px-4 py-3 border-b border-slate-200/60 flex items-center gap-2">
-                <svg className="w-4 h-4 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
-                </svg>
-                <h2 className="text-sm font-semibold text-slate-800">News & Updates</h2>
-              </div>
-              <div className="flex-1 overflow-y-auto p-3">
-                <NewsFeed maxItems={alerts.length === 0 ? 10 : 4} compact />
-              </div>
-            </div>
+        {/* Floating Info Panel - Both Desktop & Mobile */}
+        <div>
+          {/* Floating Action Button */}
+          <button
+            onClick={() => setShowMobilePanel(!showMobilePanel)}
+            className="fixed bottom-6 right-6 z-[2000] w-14 h-14 bg-brand-600 hover:bg-brand-700 text-white rounded-full shadow-lg flex items-center justify-center transition-all active:scale-95"
+          >
+            {showMobilePanel ? (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            )}
+          </button>
 
-            {/* Windy Mini Map Section */}
-            <a
-              href="/windy"
-              className="card overflow-hidden flex flex-col group hover:ring-2 hover:ring-purple-400 transition-all cursor-pointer"
-              style={{ height: '240px' }}
-            >
-              <div className="px-4 py-2 border-b border-slate-200/60 flex items-center justify-between bg-gradient-to-r from-purple-50 to-indigo-50">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">🌀</span>
-                  <h2 className="text-sm font-semibold text-slate-800">Windy Weather</h2>
-                  {userLocation && (
-                    <span className="text-xs text-green-600 flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
-                      Your location
-                    </span>
+          {/* Floating Panel */}
+          {showMobilePanel && (
+            <>
+              {/* Backdrop */}
+              <div
+                className="fixed inset-0 bg-black/50 z-[1500] animate-in fade-in duration-200"
+                onClick={() => setShowMobilePanel(false)}
+              />
+
+              {/* Panel Content - Right side on desktop, bottom on mobile */}
+              <div className="fixed lg:top-20 lg:right-6 lg:bottom-6 lg:w-96 inset-x-0 bottom-0 lg:inset-x-auto z-[1600] bg-white/10 backdrop-blur-md lg:rounded-2xl rounded-t-3xl shadow-2xl lg:max-h-none max-h-[85vh] flex flex-col border border-white/20 animate-in lg:slide-in-from-right slide-in-from-bottom duration-300">
+                {/* Handle */}
+                <div className="flex items-center justify-center pt-3 pb-2">
+                  <div className="w-12 h-1.5 bg-slate-300 rounded-full" />
+                </div>
+
+                {/* Panel Header */}
+                <div className="px-4 pb-3 border-b border-white/20">
+                  <h2 className="text-lg font-semibold text-slate-900">Dashboard Info</h2>
+                  <p className="text-xs text-slate-700 mt-1">Real-time flood monitoring data</p>
+                </div>
+
+                {/* Scrollable Content */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                  {/* River Network Status - Mobile */}
+                  <RiverNetworkStatus />
+
+                  {/* Alerts */}
+                  {alerts.length > 0 && (
+                    <div className="bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 overflow-hidden flex flex-col">
+                      <div className="px-4 py-3 border-b border-white/20 flex items-center justify-between bg-red-500/10">
+                        <div className="flex items-center gap-2">
+                          <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                          </svg>
+                          <h2 className="text-sm font-semibold text-slate-800">Active Alerts</h2>
+                        </div>
+                        <span className="px-2 py-0.5 text-xs rounded-full bg-red-100 text-red-600 font-semibold">
+                          {alerts.length}
+                        </span>
+                      </div>
+                      <div className="p-3 max-h-[250px] overflow-y-auto">
+                        <AlertList
+                          alerts={selectedDistrict ? alerts.filter(a => a.district === selectedDistrict) : alerts}
+                          compact
+                        />
+                      </div>
+                    </div>
                   )}
-                </div>
-                <span className="text-xs text-purple-600 group-hover:text-purple-700 flex items-center gap-1">
-                  Open full map
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </span>
-              </div>
-              <div className="flex-1 relative">
-                <iframe
-                  src={`https://embed.windy.com/embed2.html?lat=${userLocation?.lat ?? 7.8731}&lon=${userLocation?.lon ?? 80.7718}&zoom=${userLocation ? 9 : 6}&level=surface&overlay=rain&product=ecmwf&menu=&message=&marker=${userLocation ? 'true' : ''}&calendar=&pressure=&type=map&location=coordinates&detail=&metricWind=km%2Fh&metricTemp=%C2%B0C&radarRange=-1`}
-                  width="100%"
-                  height="100%"
-                  frameBorder="0"
-                  title="Windy Mini Map"
-                  className="pointer-events-none"
-                />
-                <div className="absolute inset-0 bg-transparent group-hover:bg-purple-500/10 transition-colors" />
-              </div>
-            </a>
 
-            {/* Alerts Section - Only show if there are alerts */}
-            {alerts.length > 0 && (
-              <div className="card overflow-hidden flex flex-col flex-1 min-h-[150px]">
-                <div className="px-4 py-3 border-b border-slate-200/60 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                    </svg>
-                    <h2 className="text-sm font-semibold text-slate-800">Active Alerts</h2>
+                  {/* No Alerts */}
+                  {alerts.length === 0 && !loading && (
+                    <div className="bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 px-4 py-3 flex items-center gap-2 text-sm text-emerald-700">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span>No active alerts</span>
+                    </div>
+                  )}
+
+                  {/* News Feed */}
+                  <div className="bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 overflow-hidden flex flex-col">
+                    <div className="px-4 py-3 border-b border-white/20 flex items-center gap-2">
+                      <svg className="w-4 h-4 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                      </svg>
+                      <h2 className="text-sm font-semibold text-slate-800">News & Updates</h2>
+                    </div>
+                    <div className="p-3 max-h-[300px] overflow-y-auto">
+                      <NewsFeed maxItems={5} compact />
+                    </div>
                   </div>
-                  <span className="px-2 py-0.5 text-xs rounded-full bg-red-100 text-red-600 font-semibold">
-                    {alerts.length}
-                  </span>
-                </div>
-                <div className="px-4 py-2 bg-slate-50/50 border-b border-slate-100">
-                  <p className="text-xs text-slate-500">
-                    {selectedDistrict ? `Showing ${selectedDistrict}` : 'All districts'}
-                  </p>
-                </div>
-                <div className="flex-1 overflow-y-auto p-3">
-                  <AlertList
-                    alerts={selectedDistrict ? alerts.filter(a => a.district === selectedDistrict) : alerts}
-                    compact
-                  />
-                </div>
-              </div>
-            )}
 
-            {/* No Alerts Message - subtle indicator */}
-            {alerts.length === 0 && !loading && (
-              <div className="card px-4 py-3 flex items-center gap-2 text-sm text-emerald-600 bg-emerald-50/50">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span>No active alerts</span>
+                  {/* Windy Link */}
+                  <a
+                    href="/windy"
+                    className="bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 p-4 flex items-center justify-between group hover:bg-white/20 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">🌀</span>
+                      <div>
+                        <div className="text-sm font-semibold text-slate-800">Windy Weather Map</div>
+                        <div className="text-xs text-slate-500">Real-time wind & rain visualization</div>
+                      </div>
+                    </div>
+                    <svg className="w-5 h-5 text-purple-600 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </a>
+                </div>
               </div>
-            )}
-          </div>
+            </>
+          )}
         </div>
       </div>
     </div>

@@ -96,7 +96,7 @@ class IntelEngine:
         # Build weather lookup by district
         weather_by_district = {}
         for w in weather_data:
-            district = w.get("district", "").lower()
+            district = (w.get("district") or "").lower()
             weather_by_district[district] = w
 
         # Pre-fetch elevation data for reports with coordinates (batch)
@@ -174,7 +174,7 @@ class IntelEngine:
                 factors.append("low_battery=2")
 
             # 6. Weather escalation (0-15 bonus points)
-            district = report.get("district", "").lower()
+            district = (report.get("district") or "").lower()
             weather = weather_by_district.get(district)
             weather_risk = 0
             if weather:
@@ -369,7 +369,7 @@ class IntelEngine:
         })
 
         for r in reports:
-            d = r.get("district", "Unknown")
+            d = r.get("district") or "Unknown"
             district_stats[d]["count"] += 1
             district_stats[d]["total_people"] += r.get("number_of_people", 1)
             district_stats[d][r.get("urgency_tier", "medium").lower()] += 1
@@ -381,7 +381,7 @@ class IntelEngine:
                 district_stats[d]["has_medical"] += 1
 
         # Calculate averages and add weather risk
-        weather_by_district = {w.get("district", "").lower(): w for w in weather_data}
+        weather_by_district = {(w.get("district") or "").lower(): w for w in weather_data}
 
         for d, stats in district_stats.items():
             if stats["count"] > 0:
@@ -393,7 +393,7 @@ class IntelEngine:
                 stats["avg_urgency"] = round(urgency_sum / stats["count"], 1)
 
             # Add weather forecast
-            weather = weather_by_district.get(d.lower(), {})
+            weather = weather_by_district.get((d or "").lower(), {})
             stats["forecast_rain_24h"] = weather.get("forecast_precip_24h_mm", 0)
             stats["current_alert_level"] = weather.get("alert_level", "green")
 
@@ -475,12 +475,12 @@ class IntelEngine:
 
         reports = [
             r for r in self._cached_priorities
-            if r.get("district", "").lower() == district_lower
+            if (r.get("district") or "").lower() == district_lower
         ]
 
         clusters = [
             c for c in self._cached_clusters
-            if district_lower in [d.lower() for d in c.get("districts", [])]
+            if district_lower in [(d or "").lower() for d in c.get("districts", [])]
         ]
 
         district_summary = self._cached_summary.get("districts", {}).get(district, {})

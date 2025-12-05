@@ -6,7 +6,7 @@ Uses Open-Meteo Historical API for 30+ years of rainfall data.
 import httpx
 import logging
 from typing import Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from collections import defaultdict
 import statistics
 
@@ -130,12 +130,12 @@ class FloodPatternAnalyzer:
                 rain = daily.get("rain_sum", [])
 
                 year_data = []
-                for i, date in enumerate(times):
+                for i, date_str in enumerate(times):
                     record = {
-                        "date": date,
-                        "year": int(date[:4]),
-                        "month": int(date[5:7]),
-                        "day": int(date[8:10]),
+                        "date": date_str,
+                        "year": int(date_str[:4]),
+                        "month": int(date_str[5:7]),
+                        "day": int(date_str[8:10]),
                         "precipitation_mm": precip[i] if i < len(precip) and precip[i] is not None else 0,
                         "rain_mm": rain[i] if i < len(rain) and rain[i] is not None else 0,
                     }
