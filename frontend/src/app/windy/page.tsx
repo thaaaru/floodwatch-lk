@@ -86,9 +86,8 @@ export default function WindyPage() {
   const lat = 7.8731; // Central Sri Lanka latitude
   const lon = 80.7718; // Central Sri Lanka longitude
   const zoom = 7; // Zoom level to show entire island
-  const marker = ''; // No marker for cleaner view
 
-  const embedUrl = `https://embed.windy.com/embed2.html?lat=${lat}&lon=${lon}&detailLat=${lat}&detailLon=${lon}&zoom=${zoom}&level=surface&overlay=${activeOverlay}&product=ecmwf&menu=&message=true&marker=${marker}&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=km%2Fh&metricTemp=%C2%B0C&radarRange=-1`;
+  const embedUrl = `https://embed.windy.com/embed2.html?lat=${lat}&lon=${lon}&detailLat=${lat}&detailLon=${lon}&zoom=${zoom}&level=surface&overlay=${activeOverlay}&product=ecmwf&menu=&message=true&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=km%2Fh&metricTemp=%C2%B0C&radarRange=-1`;
 
   return (
     <div className="h-screen bg-slate-900 relative overflow-hidden" style={{ touchAction: 'none' }}>
