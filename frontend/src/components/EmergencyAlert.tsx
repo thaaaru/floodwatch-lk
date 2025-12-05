@@ -29,8 +29,8 @@ export default function EmergencyAlert() {
         'Residents on slopes, near cut slopes, and steep roads must evacuate immediately',
         'Red alert extended to 40 District Secretariat Divisions in 4 districts',
       ],
-      source: 'NBRO, Newswire',
-      sourceUrl: 'https://www.newswire.lk/2025/12/05/nbro-issues-updated-landslide-warnings-for-several-districts/',
+      source: 'NBRO',
+      sourceUrl: 'https://www.nbro.gov.lk/index.php?lang=en',
       updatedAt: 'Dec 5, 4:00 PM',
     },
   ];
