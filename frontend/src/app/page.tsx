@@ -213,9 +213,9 @@ export default function Dashboard() {
                         selectedLayer === layer.id
                           ? 'bg-brand-600 text-white shadow-sm'
                           : 'bg-white/80 text-slate-900 hover:bg-white border border-slate-300'
-                      }`}
+                      } ${layer.id === 'danger' ? 'hidden sm:flex' : ''}`}
                     >
-                      <span>{layer.icon}</span>
+                      <span className="text-base">{layer.icon}</span>
                       <span className="hidden sm:inline">{layer.label}</span>
                     </button>
                   ))}
@@ -257,13 +257,14 @@ export default function Dashboard() {
                       key={layer.id}
                       onClick={() => setSelectedLayer(layer.id)}
                       title={layer.description}
-                      className={`px-2.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                      className={`px-2.5 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
                         selectedLayer === layer.id
                           ? 'bg-violet-600 text-white shadow-sm'
                           : 'bg-white/80 text-slate-900 hover:bg-white border border-slate-300'
                       }`}
                     >
-                      {layer.label}
+                      <span className="text-base">{layer.icon}</span>
+                      <span>{layer.label}</span>
                     </button>
                   ))}
                 </div>
@@ -315,10 +316,10 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Windy Icon - Mobile Only (Left Side) */}
+        {/* Windy Icon - Left Side */}
         <a
           href="/windy"
-          className="lg:hidden fixed bottom-6 left-6 z-[2000] w-14 h-14 bg-purple-600 hover:bg-purple-700 text-white rounded-full shadow-2xl flex items-center justify-center transition-all active:scale-95 ring-4 ring-purple-300/40"
+          className="fixed bottom-6 left-6 z-[2000] w-14 h-14 bg-purple-600 hover:bg-purple-700 text-white rounded-full shadow-2xl flex items-center justify-center transition-all active:scale-95 ring-4 ring-purple-300/40"
           title="Windy Weather Map"
         >
           <span className="text-2xl">🌀</span>

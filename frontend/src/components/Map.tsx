@@ -607,12 +607,7 @@ export default function Map({ onDistrictSelect, hours, layer, dangerFilter = 'al
             click: () => onDistrictSelect?.(district.district),
           }}
         >
-          <Tooltip
-            direction="top"
-            offset={[0, -10]}
-            opacity={0.95}
-            className="district-tooltip"
-          >
+          <Popup maxWidth={360} minWidth={340} className="district-popup">
             <div className="p-2" style={{ width: '340px', maxWidth: '340px' }}>
               {/* Header with district name and alert badge */}
               <div className="flex justify-between items-center border-b pb-1.5 mb-2">
@@ -741,7 +736,7 @@ export default function Map({ onDistrictSelect, hours, layer, dangerFilter = 'al
                 </div>
               )}
             </div>
-          </Tooltip>
+          </Popup>
         </Marker>
       );
     });
@@ -871,10 +866,59 @@ export default function Map({ onDistrictSelect, hours, layer, dangerFilter = 'al
           position={[condition.lat, condition.lon]}
           icon={createMarineIcon(condition.risk_level)}
           zIndexOffset={zIndex}
-        />
-    );
-  });
-}, [showMarine, marineConditions]);
+        >
+          <Popup maxWidth={280} minWidth={250}>
+            <div className="p-1">
+              <h3 className="font-bold text-sm border-b pb-1 mb-2">
+                {condition.location}
+              </h3>
+
+              {/* Risk badge */}
+              <div className={`inline-block px-2 py-1 rounded text-xs font-bold mb-2 ${
+                condition.risk_level === 'high' ? 'bg-red-100 text-red-700' :
+                condition.risk_level === 'medium' ? 'bg-orange-100 text-orange-700' :
+                'bg-green-100 text-green-700'
+              }`}>
+                {condition.risk_level.toUpperCase()} RISK
+              </div>
+
+              {/* Wave conditions */}
+              <div className="grid grid-cols-2 gap-1 text-xs mb-2">
+                <div className="bg-cyan-50 p-1.5 rounded text-center">
+                  <div className="text-gray-500">Wave Height</div>
+                  <div className="font-bold text-cyan-700">{condition.wave_height_m.toFixed(1)}m</div>
+                </div>
+                <div className="bg-blue-50 p-1.5 rounded text-center">
+                  <div className="text-gray-500">Wind Speed</div>
+                  <div className="font-bold text-blue-700">{condition.wind_speed_kmh.toFixed(0)} km/h</div>
+                </div>
+              </div>
+
+              {/* Advisory */}
+              {condition.advisory && (
+                <div className="bg-yellow-50 border border-yellow-200 p-1.5 rounded text-xs mt-2">
+                  <div className="font-semibold text-yellow-800 mb-0.5">Advisory:</div>
+                  <div className="text-gray-700">{condition.advisory}</div>
+                </div>
+              )}
+
+              {condition.last_updated && (
+                <div className="mt-2 pt-1 border-t text-xs text-gray-500">
+                  Updated: {condition.last_updated}
+                </div>
+              )}
+            </div>
+          </Popup>
+          <Tooltip direction="top" offset={[0, -10]} opacity={0.9}>
+            <div className="text-xs">
+              <div className="font-bold">{condition.location}</div>
+              <div>Waves: {condition.wave_height_m.toFixed(1)}m</div>
+            </div>
+          </Tooltip>
+        </Marker>
+      );
+    });
+  }, [showMarine, marineConditions]);
 
   // Flood gauge (irrigation station) markers
   const floodGaugeMarkers = useMemo(() => {
@@ -904,10 +948,73 @@ export default function Map({ onDistrictSelect, hours, layer, dangerFilter = 'al
           position={[station.lat, station.lon]}
           icon={createFloodGaugeIcon(station.status, station.pct_to_alert)}
           zIndexOffset={zIndex}
-        />
-    );
-  });
-}, [showFloodGauges, floodGaugeStations]);
+        >
+          <Popup maxWidth={300} minWidth={270}>
+            <div className="p-1">
+              <h3 className="font-bold text-sm border-b pb-1 mb-2">
+                {station.station}
+              </h3>
+              <div className="text-xs text-gray-600 mb-2">{station.river}</div>
+
+              {/* Status badge */}
+              <div className={`inline-block px-2 py-1 rounded text-xs font-bold mb-2 ${
+                station.status === 'major_flood' ? 'bg-red-100 text-red-700' :
+                station.status === 'minor_flood' ? 'bg-orange-100 text-orange-700' :
+                station.status === 'alert' ? 'bg-yellow-100 text-yellow-700' :
+                'bg-green-100 text-green-700'
+              }`}>
+                {station.status.replace('_', ' ').toUpperCase()}
+              </div>
+
+              {/* Water level percentage */}
+              <div className="bg-blue-50 border border-blue-200 p-2 rounded mb-2">
+                <div className="text-xs text-gray-600 mb-1">Capacity to Alert Level</div>
+                <div className={`text-2xl font-bold ${
+                  station.pct_to_alert >= 100 ? 'text-red-700' :
+                  station.pct_to_alert >= 80 ? 'text-orange-700' :
+                  station.pct_to_alert >= 60 ? 'text-yellow-700' : 'text-green-700'
+                }`}>
+                  {station.pct_to_alert.toFixed(0)}%
+                </div>
+              </div>
+
+              {/* Water levels */}
+              <div className="grid grid-cols-2 gap-1 text-xs mb-2">
+                <div className="bg-cyan-50 p-1.5 rounded">
+                  <div className="text-gray-500">Current Level</div>
+                  <div className="font-bold text-cyan-700">{station.water_level_m.toFixed(2)}m</div>
+                </div>
+                <div className="bg-red-50 p-1.5 rounded">
+                  <div className="text-gray-500">Alert Level</div>
+                  <div className="font-bold text-red-700">{station.alert_level_m.toFixed(2)}m</div>
+                </div>
+              </div>
+
+              {/* Districts */}
+              {station.districts && station.districts.length > 0 && (
+                <div className="text-xs mt-2">
+                  <span className="text-gray-500">Districts: </span>
+                  <span className="font-medium">{station.districts.join(', ')}</span>
+                </div>
+              )}
+
+              {station.last_updated && (
+                <div className="mt-2 pt-1 border-t text-xs text-gray-500">
+                  Updated: {station.last_updated}
+                </div>
+              )}
+            </div>
+          </Popup>
+          <Tooltip direction="top" offset={[0, -10]} opacity={0.9}>
+            <div className="text-xs">
+              <div className="font-bold">{station.station}</div>
+              <div>{station.pct_to_alert.toFixed(0)}% to alert</div>
+            </div>
+          </Tooltip>
+        </Marker>
+      );
+    });
+  }, [showFloodGauges, floodGaugeStations]);
 
   if (loading && weatherData.length === 0) {
     return (

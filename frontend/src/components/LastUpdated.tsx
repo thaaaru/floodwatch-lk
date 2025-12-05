@@ -49,10 +49,10 @@ export default function LastUpdated() {
   };
 
   return (
-    <div className="fixed bottom-4 right-4 z-40 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-sm border border-slate-200/60 text-xs text-slate-500">
+    <div className="fixed bottom-4 right-4 z-40 bg-white/95 backdrop-blur-md px-3 py-2 rounded-full shadow-lg border border-slate-300 text-xs">
       <span className="flex items-center gap-1.5">
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-        Updated {formatTime(lastUpdate)}
+        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span className="font-bold text-slate-900">Updated {formatTime(lastUpdate)}</span>
       </span>
     </div>
   );
