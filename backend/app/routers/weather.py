@@ -230,43 +230,54 @@ async def get_yesterday_stats():
     async def fetch_district_data(client: httpx.AsyncClient, district: dict):
         """Fetch weather data for a single district."""
         try:
+            # Use forecast API with past_days for better recent data coverage
             params = {
                 "latitude": district["latitude"],
                 "longitude": district["longitude"],
-                "start_date": yesterday_str,
-                "end_date": yesterday_str,
+                "past_days": 1,  # Get yesterday's data
                 "daily": "precipitation_sum,rain_sum,temperature_2m_max,temperature_2m_min",
                 "timezone": "Asia/Colombo"
             }
 
             resp = await client.get(
-                "https://archive-api.open-meteo.com/v1/archive",
-                params=params
+                "https://api.open-meteo.com/v1/forecast",
+                params=params,
+                timeout=30.0  # Per-request timeout
             )
 
             if resp.status_code == 200:
                 data = resp.json()
                 daily = data.get("daily", {})
-                precip = daily.get("precipitation_sum", [0])[0] or 0
-                rain = daily.get("rain_sum", [0])[0] or 0
-                rainfall = max(precip, rain)
-                temp_max = daily.get("temperature_2m_max", [None])[0]
-                temp_min = daily.get("temperature_2m_min", [None])[0]
+                if daily and len(daily.get("precipitation_sum", [])) > 0:
+                    precip = daily.get("precipitation_sum", [0])[0] or 0
+                    rain = daily.get("rain_sum", [0])[0] or 0
+                    rainfall = max(precip, rain)
+                    temp_max = daily.get("temperature_2m_max", [None])[0]
+                    temp_min = daily.get("temperature_2m_min", [None])[0]
 
-                return {
-                    "district": district["name"],
-                    "rainfall_mm": round(rainfall, 1),
-                    "temp_max_c": round(temp_max, 1) if temp_max else None,
-                    "temp_min_c": round(temp_min, 1) if temp_min else None
-                }
-        except Exception:
-            pass
+                    return {
+                        "district": district["name"],
+                        "rainfall_mm": round(rainfall, 1),
+                        "temp_max_c": round(temp_max, 1) if temp_max else None,
+                        "temp_min_c": round(temp_min, 1) if temp_min else None
+                    }
+        except Exception as e:
+            # Silently fail but log to console for debugging
+            print(f"Failed to fetch data for {district.get('name', 'unknown')}: {str(e)[:50]}")
         return None
 
-    # Fetch all districts in parallel for speed
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        tasks = [fetch_district_data(client, d) for d in districts]
-        results = await asyncio.gather(*tasks)
+    # Fetch all districts in batches to avoid rate limiting
+    batch_size = 25  # Process 25 districts at a time
+    results = []
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        for i in range(0, len(districts), batch_size):
+            batch = districts[i:i + batch_size]
+            tasks = [fetch_district_data(client, d) for d in batch]
+            batch_results = await asyncio.gather(*tasks)
+            results.extend(batch_results)
+            # Small delay between batches to avoid rate limiting
+            if i + batch_size < len(districts):
+                await asyncio.sleep(0.5)
 
     # Process results
     for district_info in results:
