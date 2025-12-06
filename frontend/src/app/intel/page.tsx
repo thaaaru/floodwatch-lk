@@ -9,6 +9,23 @@ const fmt = (v: any, d: number = 0): string => {
   return Number(v).toFixed(d);
 };
 
+// Cache key and TTL (24 hours in milliseconds)
+const INTEL_CACHE_KEY = 'intel_dashboard_cache';
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+interface CachedIntelData {
+  timestamp: number;
+  summary: IntelSummary | null;
+  priorities: SOSReport[];
+  clusters: IntelCluster[];
+  actions: IntelAction[];
+  floodThreat: FloodThreatResponse | null;
+  riverData: IrrigationResponse | null;
+  trafficFlow: TrafficFlowResponse | null;
+  trafficIncidents: TrafficIncident[];
+  allFacilities: AllFacilitiesResponse | null;
+}
+
 export default function IntelDashboard() {
   const [summary, setSummary] = useState<IntelSummary | null>(null);
   const [priorities, setPriorities] = useState<SOSReport[]>([]);
@@ -33,7 +50,56 @@ export default function IntelDashboard() {
   const [yesterdayStats, setYesterdayStats] = useState<YesterdayStats | null>(null);
   const [loadingYesterdayStats, setLoadingYesterdayStats] = useState(false);
 
-  const fetchData = useCallback(async () => {
+  // Load cached data if available and valid
+  const loadFromCache = useCallback((): boolean => {
+    try {
+      const cached = localStorage.getItem(INTEL_CACHE_KEY);
+      if (!cached) return false;
+
+      const cachedData: CachedIntelData = JSON.parse(cached);
+      const now = Date.now();
+      const age = now - cachedData.timestamp;
+
+      // Check if cache is still valid (less than 24 hours old)
+      if (age < CACHE_TTL_MS) {
+        setSummary(cachedData.summary);
+        setPriorities(cachedData.priorities);
+        setClusters(cachedData.clusters);
+        setActions(cachedData.actions);
+        setFloodThreat(cachedData.floodThreat);
+        setRiverData(cachedData.riverData);
+        setTrafficFlow(cachedData.trafficFlow);
+        setTrafficIncidents(cachedData.trafficIncidents);
+        setAllFacilities(cachedData.allFacilities);
+        setLastUpdated(new Date(cachedData.timestamp).toLocaleTimeString());
+        return true;
+      }
+    } catch (err) {
+      console.error('Failed to load cache:', err);
+    }
+    return false;
+  }, []);
+
+  // Save data to cache
+  const saveToCache = useCallback((data: Omit<CachedIntelData, 'timestamp'>) => {
+    try {
+      const cacheData: CachedIntelData = {
+        ...data,
+        timestamp: Date.now(),
+      };
+      localStorage.setItem(INTEL_CACHE_KEY, JSON.stringify(cacheData));
+    } catch (err) {
+      console.error('Failed to save cache:', err);
+    }
+  }, []);
+
+  const fetchData = useCallback(async (force = false) => {
+    // Try to load from cache first (unless forced refresh)
+    if (!force && loadFromCache()) {
+      setLoading(false);
+      return;
+    }
+
     try {
       const [summaryData, prioritiesData, clustersData, actionsData, threatData, irrigationData, trafficFlowData, trafficIncidentsData, facilitiesData] = await Promise.all([
         api.getIntelSummary(),
@@ -47,37 +113,73 @@ export default function IntelDashboard() {
         api.getAllFacilities().catch(() => null),
       ]);
 
-      setSummary(summaryData);
-      setPriorities(prioritiesData.reports);
-      setClusters(clustersData.clusters);
-      setActions(actionsData.actions);
-      setFloodThreat(threatData);
-      setRiverData(irrigationData);
-      setTrafficFlow(trafficFlowData);
-      setTrafficIncidents(trafficIncidentsData.incidents);
-      setAllFacilities(facilitiesData);
+      const fetchedData = {
+        summary: summaryData,
+        priorities: prioritiesData.reports,
+        clusters: clustersData.clusters,
+        actions: actionsData.actions,
+        floodThreat: threatData,
+        riverData: irrigationData,
+        trafficFlow: trafficFlowData,
+        trafficIncidents: trafficIncidentsData.incidents,
+        allFacilities: facilitiesData,
+      };
+
+      setSummary(fetchedData.summary);
+      setPriorities(fetchedData.priorities);
+      setClusters(fetchedData.clusters);
+      setActions(fetchedData.actions);
+      setFloodThreat(fetchedData.floodThreat);
+      setRiverData(fetchedData.riverData);
+      setTrafficFlow(fetchedData.trafficFlow);
+      setTrafficIncidents(fetchedData.trafficIncidents);
+      setAllFacilities(fetchedData.allFacilities);
       setLastUpdated(new Date().toLocaleTimeString());
+
+      // Save to cache
+      saveToCache(fetchedData);
     } catch (err) {
       console.error('Failed to fetch intel data:', err);
     } finally {
       setLoading(false);
     }
-  }, [filterUrgency]);
+  }, [filterUrgency, loadFromCache, saveToCache]);
 
   useEffect(() => {
     fetchData();
-    // Auto-refresh every 30 minutes (matches backend cache duration)
-    const interval = setInterval(fetchData, 1800000);
+    // Auto-refresh every 24 hours (cache TTL)
+    const interval = setInterval(() => fetchData(true), CACHE_TTL_MS);
     return () => clearInterval(interval);
   }, [fetchData]);
 
   // Fetch flood patterns (on-demand since it takes time)
   const fetchFloodPatterns = useCallback(async () => {
     if (floodPatterns || loadingPatterns) return; // Already loaded or loading
+
+    // Try to load from cache first
+    try {
+      const cached = localStorage.getItem('intel_flood_patterns_cache');
+      if (cached) {
+        const { data, timestamp } = JSON.parse(cached);
+        const age = Date.now() - timestamp;
+        if (age < CACHE_TTL_MS) {
+          setFloodPatterns(data);
+          return;
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load flood patterns cache:', err);
+    }
+
     setLoadingPatterns(true);
     try {
       const patterns = await api.getFloodPatterns('Colombo', 30);
       setFloodPatterns(patterns);
+      // Save to cache
+      localStorage.setItem('intel_flood_patterns_cache', JSON.stringify({
+        data: patterns,
+        timestamp: Date.now()
+      }));
     } catch (err) {
       console.error('Failed to fetch flood patterns:', err);
     } finally {
@@ -95,10 +197,31 @@ export default function IntelDashboard() {
   // Fetch environmental data (on-demand since it takes time)
   const fetchEnvironmentalData = useCallback(async () => {
     if (environmentalData || loadingEnvironmental) return; // Already loaded or loading
+
+    // Try to load from cache first
+    try {
+      const cached = localStorage.getItem('intel_environmental_cache');
+      if (cached) {
+        const { data, timestamp } = JSON.parse(cached);
+        const age = Date.now() - timestamp;
+        if (age < CACHE_TTL_MS) {
+          setEnvironmentalData(data);
+          return;
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load environmental data cache:', err);
+    }
+
     setLoadingEnvironmental(true);
     try {
       const data = await api.getEnvironmentalData(1994, 2024);
       setEnvironmentalData(data);
+      // Save to cache
+      localStorage.setItem('intel_environmental_cache', JSON.stringify({
+        data: data,
+        timestamp: Date.now()
+      }));
     } catch (err) {
       console.error('Failed to fetch environmental data:', err);
     } finally {
@@ -116,10 +239,31 @@ export default function IntelDashboard() {
   // Fetch yesterday's stats (on-demand)
   const fetchYesterdayStats = useCallback(async () => {
     if (yesterdayStats || loadingYesterdayStats) return;
+
+    // Try to load from cache first
+    try {
+      const cached = localStorage.getItem('intel_yesterday_stats_cache');
+      if (cached) {
+        const { data, timestamp } = JSON.parse(cached);
+        const age = Date.now() - timestamp;
+        if (age < CACHE_TTL_MS) {
+          setYesterdayStats(data);
+          return;
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load yesterday stats cache:', err);
+    }
+
     setLoadingYesterdayStats(true);
     try {
       const stats = await api.getYesterdayStats();
       setYesterdayStats(stats);
+      // Save to cache
+      localStorage.setItem('intel_yesterday_stats_cache', JSON.stringify({
+        data: stats,
+        timestamp: Date.now()
+      }));
     } catch (err) {
       console.error('Failed to fetch yesterday stats:', err);
     } finally {
