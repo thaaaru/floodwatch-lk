@@ -136,32 +136,41 @@ STATION_METADATA = {
         "minor_flood_m": 3.0,
         "major_flood_m": 4.0,
     },
+    "Thalgahagoda": {
+        "river": "Nilwala Ganga",
+        "district_ids": ["LK-32"],
+        "lat": 6.1,  # Approximate - needs exact coordinates
+        "lon": 80.45,  # Approximate - needs exact coordinates
+        "alert_level_m": 1.4,   # Navy Official
+        "minor_flood_m": 1.7,   # Navy Official
+        "major_flood_m": 2.8,   # Navy Official
+    },
     "Pitabeddara": {
         "river": "Nilwala Ganga",
         "district_ids": ["LK-32"],
         "lat": 6.198611111111111,
         "lon": 80.47527777777778,
-        "alert_level_m": 4.0,
-        "minor_flood_m": 5.0,
-        "major_flood_m": 6.0,
+        "alert_level_m": 4.0,   # Navy Official
+        "minor_flood_m": 5.0,   # Navy Official
+        "major_flood_m": 6.5,   # Navy Official (updated from 6.0)
     },
     "Panadugama": {
         "river": "Nilwala Ganga",
         "district_ids": ["LK-32"],
         "lat": 6.032777777777778,
         "lon": 80.51416666666667,
-        "alert_level_m": 3.5,
-        "minor_flood_m": 4.0,
-        "major_flood_m": 5.0,
+        "alert_level_m": 5.0,   # Navy Official (updated from 3.5)
+        "minor_flood_m": 6.0,   # Navy Official (updated from 4.0)
+        "major_flood_m": 7.5,   # Navy Official (updated from 5.0)
     },
     "Urawa": {
         "river": "Nilwala Ganga",
         "district_ids": ["LK-32"],
         "lat": 5.996388888888889,
         "lon": 80.54944444444445,
-        "alert_level_m": 3.0,
-        "minor_flood_m": 3.5,
-        "major_flood_m": 4.5,
+        "alert_level_m": 2.5,   # Navy Official (updated from 3.0)
+        "minor_flood_m": 4.0,   # Navy Official (updated from 3.5)
+        "major_flood_m": 6.0,   # Navy Official (updated from 4.5)
     },
     "Baddegama": {
         "river": "Gin Ganga",
