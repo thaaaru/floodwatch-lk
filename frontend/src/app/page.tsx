@@ -6,7 +6,6 @@ import { api, Alert } from '@/lib/api';
 import AlertList from '@/components/AlertList';
 import NewsFeed from '@/components/NewsFeed';
 import RiverNetworkStatus from '@/components/RiverNetworkStatus';
-import EmergencyAlert from '@/components/EmergencyAlert';
 import { MapLayer } from '@/components/Map';
 
 const Map = dynamic(() => import('@/components/Map'), {
@@ -199,9 +198,6 @@ export default function Dashboard() {
 
   return (
     <div className="h-[calc(100vh-64px)] flex flex-col bg-slate-50">
-      {/* Emergency Alert Banner */}
-      <EmergencyAlert />
-
       {/* Desktop: Grid Layout | Mobile: Full Screen Map */}
       <div className="flex-1 lg:grid lg:grid-cols-[1fr_400px] relative">
         {/* Map Container */}

@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { api, FloodThreatResponse, IrrigationResponse } from '@/lib/api';
-import EmergencyAlert from '@/components/EmergencyAlert';
 
 // Safe number formatting helper
 const fmt = (v: any, d: number = 0): string => {
@@ -76,9 +75,6 @@ export default function FloodInformationPage() {
 
   return (
     <div className="min-h-screen bg-slate-900 text-white">
-      {/* Emergency Alert Banner */}
-      <EmergencyAlert />
-
       {/* Header */}
       <div className="bg-slate-800/50 backdrop-blur-md border-b border-slate-700/50 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-3 sm:py-4">
