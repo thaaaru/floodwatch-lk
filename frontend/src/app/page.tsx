@@ -109,7 +109,6 @@ export default function Dashboard() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
   const [showMobilePanel, setShowMobilePanel] = useState(false);
   const [showForecastExpanded, setShowForecastExpanded] = useState(false);
-  const [showFloodRiskExpanded, setShowFloodRiskExpanded] = useState(false);
 
   // Note: Info panel is always visible on desktop as a sidebar, toggle only works on mobile
 
@@ -267,114 +266,50 @@ export default function Dashboard() {
               {/* Divider */}
               <div className="h-6 w-px bg-slate-200 hidden md:block" />
 
-              {/* Flood Risk - Always show on mobile, expandable on desktop */}
-              <div className="flex items-center gap-2">
-                {/* Desktop: Expandable button */}
+              {/* Flood Risk - Always show all options */}
+              <div className="flex items-center gap-1 flex-wrap">
                 <button
-                  onClick={() => setShowFloodRiskExpanded(!showFloodRiskExpanded)}
-                  className={`hidden md:flex px-2.5 py-1.5 text-xs font-bold rounded-lg transition-all items-center gap-1.5 ${
-                    selectedLayer === 'danger'
-                      ? 'bg-brand-600 text-white shadow-sm'
+                  onClick={() => { setSelectedLayer('danger'); setDangerFilter('all'); }}
+                  className={`px-2.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                    selectedLayer === 'danger' && dangerFilter === 'all'
+                      ? 'bg-gradient-to-r from-emerald-500 via-amber-500 to-red-500 text-white'
                       : 'bg-white/80 text-slate-900 hover:bg-white border border-slate-300'
                   }`}
-                  title="Toggle Flood Risk options"
                 >
-                  <span className="text-base">⚠️</span>
-                  <span>Flood Risk</span>
-                  <svg className={`w-3 h-3 transition-transform ${showFloodRiskExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
+                  <span className="md:hidden">⚠️ All</span>
+                  <span className="hidden md:inline">⚠️ All Levels</span>
                 </button>
-
-                {/* Mobile: Always show all options with colors */}
-                <div className="flex md:hidden gap-1 flex-wrap">
-                  <button
-                    onClick={() => { setSelectedLayer('danger'); setDangerFilter('all'); }}
-                    className={`px-2.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                      selectedLayer === 'danger' && dangerFilter === 'all'
-                        ? 'bg-gradient-to-r from-emerald-500 via-amber-500 to-red-500 text-white'
-                        : 'bg-white/80 text-slate-900 hover:bg-white border border-slate-300'
-                    }`}
-                  >
-                    ⚠️ All
-                  </button>
-                  <button
-                    onClick={() => { setSelectedLayer('danger'); setDangerFilter('low'); }}
-                    className={`px-2.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                      selectedLayer === 'danger' && dangerFilter === 'low'
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-white/80 text-slate-900 hover:bg-white border border-slate-300'
-                    }`}
-                  >
-                    Low
-                  </button>
-                  <button
-                    onClick={() => { setSelectedLayer('danger'); setDangerFilter('medium'); }}
-                    className={`px-2.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                      selectedLayer === 'danger' && dangerFilter === 'medium'
-                        ? 'bg-amber-600 text-white'
-                        : 'bg-white/80 text-slate-900 hover:bg-white border border-slate-300'
-                    }`}
-                  >
-                    Med
-                  </button>
-                  <button
-                    onClick={() => { setSelectedLayer('danger'); setDangerFilter('high'); }}
-                    className={`px-2.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                      selectedLayer === 'danger' && dangerFilter === 'high'
-                        ? 'bg-red-600 text-white'
-                        : 'bg-white/80 text-slate-900 hover:bg-white border border-slate-300'
-                    }`}
-                  >
-                    High
-                  </button>
-                </div>
-
-                {/* Desktop: Flood Risk Dropdown */}
-                {showFloodRiskExpanded && (
-                  <div className="hidden md:flex gap-1">
-                    <button
-                      onClick={() => { setSelectedLayer('danger'); setDangerFilter('all'); }}
-                      className={`px-2.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                        selectedLayer === 'danger' && dangerFilter === 'all'
-                          ? 'bg-brand-600 text-white'
-                          : 'bg-white/80 text-slate-900 hover:bg-white border border-slate-300'
-                      }`}
-                    >
-                      All Levels
-                    </button>
-                    <button
-                      onClick={() => { setSelectedLayer('danger'); setDangerFilter('low'); }}
-                      className={`px-2.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                        selectedLayer === 'danger' && dangerFilter === 'low'
-                          ? 'bg-emerald-600 text-white'
-                          : 'bg-white/80 text-slate-900 hover:bg-white border border-slate-300'
-                      }`}
-                    >
-                      Low
-                    </button>
-                    <button
-                      onClick={() => { setSelectedLayer('danger'); setDangerFilter('medium'); }}
-                      className={`px-2.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                        selectedLayer === 'danger' && dangerFilter === 'medium'
-                          ? 'bg-amber-600 text-white'
-                          : 'bg-white/80 text-slate-900 hover:bg-white border border-slate-300'
-                      }`}
-                    >
-                      Medium
-                    </button>
-                    <button
-                      onClick={() => { setSelectedLayer('danger'); setDangerFilter('high'); }}
-                      className={`px-2.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                        selectedLayer === 'danger' && dangerFilter === 'high'
-                          ? 'bg-red-600 text-white'
-                          : 'bg-white/80 text-slate-900 hover:bg-white border border-slate-300'
-                      }`}
-                    >
-                      High
-                    </button>
-                  </div>
-                )}
+                <button
+                  onClick={() => { setSelectedLayer('danger'); setDangerFilter('low'); }}
+                  className={`px-2.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                    selectedLayer === 'danger' && dangerFilter === 'low'
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-white/80 text-slate-900 hover:bg-white border border-slate-300'
+                  }`}
+                >
+                  Low
+                </button>
+                <button
+                  onClick={() => { setSelectedLayer('danger'); setDangerFilter('medium'); }}
+                  className={`px-2.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                    selectedLayer === 'danger' && dangerFilter === 'medium'
+                      ? 'bg-amber-600 text-white'
+                      : 'bg-white/80 text-slate-900 hover:bg-white border border-slate-300'
+                  }`}
+                >
+                  <span className="md:hidden">Med</span>
+                  <span className="hidden md:inline">Medium</span>
+                </button>
+                <button
+                  onClick={() => { setSelectedLayer('danger'); setDangerFilter('high'); }}
+                  className={`px-2.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                    selectedLayer === 'danger' && dangerFilter === 'high'
+                      ? 'bg-red-600 text-white'
+                      : 'bg-white/80 text-slate-900 hover:bg-white border border-slate-300'
+                  }`}
+                >
+                  High
+                </button>
               </div>
 
               {/* Divider */}
