@@ -409,8 +409,8 @@ export default function Dashboard() {
                       onClick={() => setShowForecastExpanded(false)}
                     />
 
-                    {/* Dropdown Menu - Drops down vertically */}
-                    <div className="absolute top-full left-0 right-0 sm:left-0 sm:right-auto mt-2 z-[1001] bg-white/95 backdrop-blur-xl rounded-xl shadow-2xl border border-white/60 p-3 w-full sm:min-w-[280px] sm:w-auto max-w-[320px]">
+                    {/* Dropdown Menu - Drops up vertically */}
+                    <div className="absolute bottom-full left-0 right-0 sm:left-0 sm:right-auto mb-2 z-[1001] bg-white/95 backdrop-blur-xl rounded-xl shadow-2xl border border-white/60 p-3 w-full sm:min-w-[280px] sm:w-auto max-w-[320px]">
                       <div className="text-[10px] font-bold text-slate-600 uppercase tracking-wide mb-2">Select Forecast Day</div>
                       <div className="flex flex-col gap-2">
                         {forecastLayersWithDates.map((layer) => (
